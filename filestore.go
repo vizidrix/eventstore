@@ -10,8 +10,8 @@ import (
 type IFileStore interface {
 	IsNotExist(err error) bool
 	Mkdir(name string, perm os.FileMode) error
-	Create(name string) (IFile, error)
-	Open(name string) (IFile, error)
+	Create(name string) (*os.File, error)
+	Open(name string) (*os.File, error)
 	Stat(name string) (os.FileInfo, error)
 }
 
@@ -37,6 +37,6 @@ type osFileStore struct{}
 
 func (osFileStore) IsNotExist(err error) bool                 { return os.IsNotExist(err) }
 func (osFileStore) Mkdir(name string, perm os.FileMode) error { return os.Mkdir(name, perm) }
-func (osFileStore) Create(name string) (IFile, error)         { return os.Create(name) }
-func (osFileStore) Open(name string) (IFile, error)           { return os.Open(name) }
+func (osFileStore) Create(name string) (*os.File, error)      { return os.Create(name) }
+func (osFileStore) Open(name string) (*os.File, error)        { return os.Open(name) }
 func (osFileStore) Stat(name string) (os.FileInfo, error)     { return os.Stat(name) }

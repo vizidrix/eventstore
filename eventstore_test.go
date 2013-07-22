@@ -15,7 +15,7 @@ type MyEvent struct {
 
 func (event *MyEvent) ToBinary() ([]byte, error) {
 	buffer := make([]byte, len(event.Value)+4)
-	log.Printf("Made buffer %d", len(buffer))
+	log.Printf("ToBinary: Made buffer %d", len(buffer))
 	index := 0
 	buffer[index] = event.Index
 	index++
@@ -23,7 +23,7 @@ func (event *MyEvent) ToBinary() ([]byte, error) {
 		buffer[index] = byte(char)
 		index++
 	}
-	log.Printf("Pop buffer %d", buffer)
+	log.Printf("ToBinary: Pop buffer %d", buffer)
 	return buffer, nil
 }
 
@@ -42,14 +42,16 @@ func Test_Should_create_containing_folder_on_connect(t *testing.T) {
 	kind, err := domain.Kind("Person")
 	aggregate, err := kind.Aggregate(id)
 
+	log.Printf(
+		"%s \n\t %s \n\t\t %s \n\t\t\t %s \n\t *Error: %s",
+		es, domain, kind, aggregate, err)
+
 	event := &MyEvent{
 		Value: "stuff",
 		Index: 10,
 	}
 
 	aggregate.Append(event)
-
-	log.Printf("%s - %s - %s [%s]", es, domain, kind, aggregate, err)
 
 	t.Fail()
 }
