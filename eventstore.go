@@ -1,7 +1,7 @@
 package eventstore
 
 import (
-	//"errors"
+	"errors"
 	//"bufio"
 	//"bytes"
 	"fmt"
@@ -15,26 +15,64 @@ import (
 	"time"
 )
 
-func ignore() { log.Println("") }
+func ignore() { log.Println(fmt.Sprintf("", 10)) }
 
-type EventStore struct {
-	path string
+type BinSerializable interface {
+	ToBinary() ([]byte, error)
+	FromBinary([]byte) (interface{}, error)
+}
+
+type EventStoreEntry struct {
+	CRC           int32
+	UnixTimeStamp int32
+	EventType     byte
+	Length        uint32 // Max 4096 bytes
+	Data          []byte
+}
+
+type ReadEventStorer interface {
+	// Returns an array of all EventStoreEntry's for the aggregate uri
+	GetById(uri *AggregateRootURI) ([]EventStoreEntry, error)
+	// Returns an array of all EventStoreEntry's for the aggregate uri that were logged between the TimeStamp range provided
+	GetByTSRange(uri *AggregateRootURI, startTS int32, endTS int32) ([]EventStoreEntry, error)
+	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
+	GetByIndexRange(uri *AggregateRootURI, startIndex uint64, endIndex uint64) ([]EventStoreEntry, error)
+}
+
+type WriteEventStorer interface {
+	Append(uri *AggregateRootURI, entries ...EventStoreEntry) error
+}
+
+type EventStorer interface {
+	ReadEventStorer
+	WriteEventStorer
+}
+
+func Connect(connString string) (EventStorer, error) {
+	switch connString[0:2] {
+	case "fs":
+		{
+			return &FileSystemEventStore{}, nil
+		}
+	case "me":
+		{
+			return &MemoryEventStore{}, nil
+		}
+	}
+	return nil, errors.New("Invalid EventStore connection string")
 }
 
 type Domain struct {
-	eventstore *EventStore
-	path       string
-	namespace  string
+	path      string
+	namespace string
 }
 
 type Kind struct {
-	domain   *Domain
 	path     string
 	kindName string
 }
 
 type Aggregate struct {
-	kind *Kind
 	path string
 	id   int64
 }
@@ -43,14 +81,8 @@ type IEvent interface {
 	ToBinary() ([]byte, error)
 }
 
-func Connect(path string) (*EventStore, error) {
-	//path := "/eventstore/"
-	makeDirectory(path)
-
-	return &EventStore{path}, nil
-}
-
-func (es *EventStore) Domain(namespace string) (*Domain, error) {
+/*
+func (es EventStorer) Domain(namespace string) (*Domain, error) {
 	path := fmt.Sprintf("%s%s/", es.path, namespace)
 	makeDirectory(path)
 
@@ -83,39 +115,63 @@ func (kind *Kind) Aggregate(id int64) (*Aggregate, error) {
 	}, nil
 }
 
+/*
+func (aggregate *Aggregate) LoadAll() ([]IEvent, error) {
+
+}
+*/
+
 func (aggregate *Aggregate) Append(event IEvent) error {
 	data, _ := event.ToBinary()
 	log.Printf("Got data: %d", data)
 
-	//file, err := os.Open(aggregate.path)
-	file, err := makeFile(aggregate.path)
-	defer file.Close()
+	file, err := os.OpenFile(aggregate.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Printf("Error opening file: %s", aggregate.path)
+		log.Printf("Error opening file: %s error %s", aggregate.path, err)
 		return err
 	}
 
 	count, err := file.Write(data)
-
 	if err != nil {
-		log.Printf("Error writing to file: %s", err)
+		log.Printf("Error writing to file: %s with %s error %s", aggregate.path, data, err)
 		return err
 	}
-	log.Printf("Wrote %d bytes to file %s", count, aggregate.path)
-	//buffer := new(bytes.Buffer)
-	//binary.Write(buffer, binary.BigEndian, int32(len(data)))
-	//buffer.Write(data)
-	//log.Printf("Buffer: %s", buffer)
-	//file, _ := getFile(aggregate.path)
 
-	//WriteData(file, data)
-
-	//sz, _ := file.Write(buffer.Bytes())
-	//sz, _ := file.Write(data)
-
-	//log.Printf("%d bytes written", sz)
-
+	log.Printf("Should have written %d bytes to file: %s", count, aggregate.path)
 	return nil
+
+	/*
+		//file, err := os.Open(aggregate.path)
+		file, err := makeFile(aggregate.path)
+		//defer file.Close()
+		if err != nil {
+			log.Printf("Error opening file: %s", aggregate.path)
+			return err
+		}
+
+		count, err := file.Write(data)
+		file.Close()
+
+		if err != nil {
+			log.Printf("Error writing to file: %s", err)
+			return err
+		}
+		log.Printf("Wrote %d bytes to file %s", count, aggregate.path)
+		//buffer := new(bytes.Buffer)
+		//binary.Write(buffer, binary.BigEndian, int32(len(data)))
+		//buffer.Write(data)
+		//log.Printf("Buffer: %s", buffer)
+		//file, _ := getFile(aggregate.path)
+
+		//WriteData(file, data)
+
+		//sz, _ := file.Write(buffer.Bytes())
+		//sz, _ := file.Write(data)
+
+		//log.Printf("%d bytes written", sz)
+
+		return nil
+	*/
 }
 
 func WriteData(dest io.Writer, data []byte) error {

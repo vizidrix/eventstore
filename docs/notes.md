@@ -23,10 +23,11 @@ Folder per Domain
 		-> File per Aggregate Id
 
 
+[ Int32 | Int32 | Int32                 		| byte[] ]
+[ Int32 | Int32 | Byte	     | 3 Byte  			| byte[] ]
+[ CRC	| TS	| TypeType   | LEN 4084 MAX		| DATA	 ]
 
-[ Int32 | Int32 | 2xInt64 							| Int32 | byte[] ]
-[ CRC	| TS	| Domain 30 bytes + Type 2 bytes    | LEN 	| DATA	 ]
-[ 		| 		| 20 packed char + 256 indexed ids	| 		|		 ]
+* Limit max len to 4096 - 12 to fit entry into 4kb page size
 
 
 
@@ -48,8 +49,8 @@ profileUpdated := person.ProfileUpdated("Stuff has changed")
 nameChangedReversed := person.NameChangeReversed("John", "Wayne")
 
 es := eventstore.Connect()
-domain := es.Domain("WearShare")
-aggregate := domain.Aggregate("Person")
+domain := es.Domain("namespace")
+aggregate := domain.Aggregate("person")
 instance := aggregate.Instance(id)
 
 err := instance.Append(registered)
@@ -65,7 +66,7 @@ err := instance.Append(
 events, err := instance.ReadRaw()
 
 
-events, err := es.ReadRaw("WearShare", "Person", id)
+events, err := es.ReadRaw("namespace", "person", id)
 
 
 

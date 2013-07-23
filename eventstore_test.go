@@ -1,45 +1,113 @@
 package eventstore_test
 
 import (
-	eventstore "github.com/vizidrix/eventstore"
+	//"encoding/binary"
+	goes "github.com/vizidrix/eventstore"
 	"log"
 	"testing"
 )
 
 func ignore() { log.Println("") }
 
-type MyEvent struct {
-	Value string
-	Index byte
+type VisitorLogged struct {
+	UnixNSTimeStamp int64
+	IPv4Address     int64
+	IPv6Header      int64
+	IPv6Address     int64
+	Referrer        string
 }
 
-func (event *MyEvent) ToBinary() ([]byte, error) {
-	buffer := make([]byte, len(event.Value)+4)
-	log.Printf("ToBinary: Made buffer %d", len(buffer))
+/*
+func (event *VisitorLogged) ToBinary() ([]byte, error) {
+	buffer := make([]byte, 4+4+4+4+len(event.Referrer))
 	index := 0
-	buffer[index] = event.Index
+	buffer[index] = binary.Write(buffer, binary.BigEndian, event.UnixNSTimeStamp)
+
 	index++
 	for char := range event.Value {
 		buffer[index] = byte(char)
 		index++
 	}
-	log.Printf("ToBinary: Pop buffer %d", buffer)
 	return buffer, nil
 }
+*/
 
+func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing.T) {
+	// Arrange
+	//path := "/eventstore/"
+	path := "mem://"
+
+	// Act
+	eventStore, err := goes.Connect(path)
+
+	// Assert
+	if err != nil {
+		log.Printf("Connect failed: %s", err)
+		t.Fail()
+		return
+	}
+	switch es := (eventStore).(type) {
+	case *goes.MemoryEventStore:
+		{
+		}
+	default:
+		{
+			log.Printf("Wrong event store type created: %s", es)
+			t.Fail()
+		}
+	}
+}
+
+func Test_Should_try_to_connect_to_FileSystemEventStore_with_correct_path(t *testing.T) {
+	// Arrange
+	path := "fs://eventstore/"
+
+	// Act
+	eventStore, err := goes.Connect(path)
+
+	// Assert
+	if err != nil {
+		log.Printf("Connect failed: %s", err)
+		t.Fail()
+		return
+	}
+	switch es := (eventStore).(type) {
+	case *goes.FileSystemEventStore:
+		{
+		}
+	default:
+		{
+			log.Printf("Wrong event store type created: %s", es)
+			t.Fail()
+		}
+	}
+}
+
+func Test_Should_produce_correct_RelativePath_for_NamespaceURI(t *testing.T) {
+	// Arrange
+
+}
+
+/*
+func (binary *[]byte) FromBinary() (*MyEvent, error) {
+	return nil, nil
+}
+*/
+
+/*
 func Test_Should_create_containing_folder_on_connect(t *testing.T) {
 	// Arrange
-	/*options := map[string]string{
-		"path": "/eventstore/",
-	}*/
+	//options := map[string]string{
+	//	"path": "/eventstore/",
+	//}
 
 	// Act
 	id := eventstore.NewKey()
 	es, _ := eventstore.Connect("/eventstore/")
 
 	// Assert
-	domain, _ := es.Domain("WearShare")
-	kind, err := domain.Kind("Person")
+	domain, _ := es.Domain("namespace")
+	kind, err := domain.Kind("person")
 	aggregate, err := kind.Aggregate(id)
 
 	log.Printf(
@@ -53,11 +121,48 @@ func Test_Should_create_containing_folder_on_connect(t *testing.T) {
 
 	aggregate.Append(event)
 
+	//events := aggregate.LoadAll()
+
+	//log.Printf("Read %d events", len(events))
+
 	t.Fail()
 }
+*/
+/*
+func Test_Should_create_aggregate_by_uri(t *testing.T) {
+	// Create a new id for the aggregate
+	id := eventstore.NewKey()
 
-func BenchmarkRandomDataMaker2(b *testing.B) {
+	// Create the aggregate uri
+	uri := fmt.Sprintf("/namespace/person/%d", id)
+
+	es, _ := eventstore.Connect("/eventstore/")
+
+	aggregate, err := es.Aggregate(uri)
+
+	event := &MyEvent{
+		Value: "stuff",
+		Index: 10,
+	}
+
+	aggregate.Append(event)
+}
+*/
+
+func Benchmark_NewKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		eventstore.NewKey()
+		goes.NewKey()
+	}
+}
+
+func Benchmark_AppendEvent(b *testing.B) {
+	//eventStore, err := goes.Connect("/eventstore/")
+	//domain, _ := es.Domain("namespace")
+	//kind, err := domain.Kind("person")
+
+	for i := 0; i < b.N; i++ {
+		//id := goes.NewKey()
+
+		//aggregate, err := kind.Aggregate(id)
 	}
 }

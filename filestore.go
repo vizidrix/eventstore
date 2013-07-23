@@ -40,3 +40,19 @@ func (osFileStore) Mkdir(name string, perm os.FileMode) error { return os.Mkdir(
 func (osFileStore) Create(name string) (*os.File, error)      { return os.Create(name) }
 func (osFileStore) Open(name string) (*os.File, error)        { return os.Open(name) }
 func (osFileStore) Stat(name string) (os.FileInfo, error)     { return os.Stat(name) }
+
+const (
+	Append_WriteOnly          = os.O_APPEND | os.O_WRONLY
+	Create_Truncate_WriteOnly = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+)
+
+/*
+func Write(file string, flag int, data []byte) {
+	if file, err := os.Open(file, flag, 0666); err == nil {
+		// File opened successfully
+	} else {
+		log.Printf("Unable to open file: %s - %s", file, err)
+	}
+
+}
+*/
