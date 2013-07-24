@@ -4,32 +4,32 @@ import (
 	"fmt"
 )
 
-type AggregateKindURI struct {
+type AggregateKindUri struct {
 	namespace string
 	kind      string
 }
 
-func NewAggregateKindURI(namespace string, kind string) *AggregateKindURI {
-	return &AggregateKindURI{
+func NewAggregateKindUri(namespace string, kind string) *AggregateKindUri {
+	return &AggregateKindUri{
 		namespace: namespace,
 		kind:      kind,
 	}
 }
 
-func (uri *AggregateKindURI) Namespace() string {
+func (uri *AggregateKindUri) Namespace() string {
 	return uri.namespace
 }
 
-func (uri *AggregateKindURI) Kind() string {
+func (uri *AggregateKindUri) Kind() string {
 	return uri.kind
 }
 
-func (uri *AggregateKindURI) RelativePath() string {
+func (uri *AggregateKindUri) RelativePath() string {
 	return fmt.Sprint("%s/%s",
 		uri.Namespace,
 		uri.Kind)
 }
 
-func (uri *AggregateKindURI) ToAggregateRootURI(id int64) *AggregateRootURI {
-	return NewAggregateRootURI(uri.namespace, uri.kind, id)
+func (uri *AggregateKindUri) ToAggregateRootUri(id int64) *AggregateRootUri {
+	return NewAggregateRootUri(uri.namespace, uri.kind, id)
 }

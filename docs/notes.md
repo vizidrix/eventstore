@@ -23,9 +23,9 @@ Folder per Domain
 		-> File per Aggregate Id
 
 
-[ Int32 | Int32 | Int32                 		| byte[] ]
-[ Int32 | Int32 | Byte	     | 3 Byte  			| byte[] ]
-[ CRC	| TS	| TypeType   | LEN 4084 MAX		| DATA	 ]
+[ Int32 | Int32 | Int32                 			| byte[] ]
+[ Int32 | Int32 | Byte	      | 3 Byte  			| byte[] ]
+[ CRC	| TS	| EventType   | LEN 4084 MAX		| DATA	 ]
 
 * Limit max len to 4096 - 12 to fit entry into 4kb page size
 

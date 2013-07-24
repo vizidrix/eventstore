@@ -83,9 +83,37 @@ func Test_Should_try_to_connect_to_FileSystemEventStore_with_correct_path(t *tes
 	}
 }
 
-func Test_Should_produce_correct_RelativePath_for_NamespaceURI(t *testing.T) {
+func Test_Should_return_error_if_connstring_is_invalid(t *testing.T) {
 	// Arrange
+	paths := []string{
+		"invalid://stuff",
+		"a://bleh",
+		"fs2://real/",
+		"amem://stuff",
+		"mem//stuff",
+		"fs:/stuff",
+		"£¢://broke",
+		"http://stuff",
+		"tcp://stuff",
+		"fs",
+		"mem",
+		"http",
+		"tcp",
+	}
 
+	// Act
+	for _, path := range paths {
+		if _, err := goes.Connect(path);
+		// Assert
+		err == nil {
+			log.Printf("Invalid path should have raised an err: %s", path)
+			t.Fail()
+		}
+	}
+}
+
+func Test_Should_produce_correct_RelativePath_for_NamespaceUri(t *testing.T) {
+	// Arrange
 }
 
 /*

@@ -11,6 +11,7 @@ import (
 	"os"
 	//"os"
 	"encoding/binary"
+	"strings"
 	//"hash/crc32"
 	"time"
 )
@@ -32,15 +33,15 @@ type EventStoreEntry struct {
 
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	GetById(uri *AggregateRootURI) ([]EventStoreEntry, error)
+	GetById(uri *AggregateRootUri) ([]EventStoreEntry, error)
 	// Returns an array of all EventStoreEntry's for the aggregate uri that were logged between the TimeStamp range provided
-	GetByTSRange(uri *AggregateRootURI, startTS int32, endTS int32) ([]EventStoreEntry, error)
+	GetByTSRange(uri *AggregateRootUri, startTS int32, endTS int32) ([]EventStoreEntry, error)
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	GetByIndexRange(uri *AggregateRootURI, startIndex uint64, endIndex uint64) ([]EventStoreEntry, error)
+	GetByIndexRange(uri *AggregateRootUri, startIndex uint64, endIndex uint64) ([]EventStoreEntry, error)
 }
 
 type WriteEventStorer interface {
-	Append(uri *AggregateRootURI, entries ...EventStoreEntry) error
+	Append(uri *AggregateRootUri, entries ...EventStoreEntry) error
 }
 
 type EventStorer interface {
@@ -49,6 +50,17 @@ type EventStorer interface {
 }
 
 func Connect(connString string) (EventStorer, error) {
+	if strings.HasPrefix(connString, "fs://") {
+		return &FileSystemEventStore{}, nil
+	} else if strings.HasPrefix(connString, "mem://") {
+		return &MemoryEventStore{}, nil
+	} else {
+		return nil, errors.New("Unable to find delimiter in connection string")
+	}
+
+	/*if index := connString.IndexOf("://"); index < 0 {
+		return nil, errors.New("Unable to find delimiter in connection string")
+	}
 	switch connString[0:2] {
 	case "fs":
 		{
@@ -58,8 +70,8 @@ func Connect(connString string) (EventStorer, error) {
 		{
 			return &MemoryEventStore{}, nil
 		}
-	}
-	return nil, errors.New("Invalid EventStore connection string")
+	}*/
+	//return nil, errors.New("Invalid EventStore connection string")
 }
 
 type Domain struct {
