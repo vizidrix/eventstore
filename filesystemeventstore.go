@@ -11,23 +11,26 @@ func NewFileSystemEventStore() *FileSystemEventStore {
 	return &FileSystemEventStore{}
 }
 
-func (es *FileSystemEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) <-chan error {
+func (es *FileSystemEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore LoadAll")
-	errorChan := make(chan error)
+	completed := make(chan struct{})
+	errored := make(chan error)
 
-	return errorChan
+	return completed, errored
 }
 
-func (es *FileSystemEventStore) LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) <-chan error {
+func (es *FileSystemEventStore) LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore LoadIndexRange")
-	errorChan := make(chan error)
+	completed := make(chan struct{})
+	errored := make(chan error)
 
-	return errorChan
+	return completed, errored
 }
 
 func (es *FileSystemEventStore) Append(uri *AggregateRootUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore Append")
-	errorChan = make(chan error)
+	completed := make(chan struct{})
+	errored := make(chan error)
 
-	return
+	return completed, errored
 }

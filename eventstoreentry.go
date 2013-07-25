@@ -3,6 +3,7 @@ package eventstore
 import (
 	//"errors"
 	//"fmt"
+	"hash/crc32"
 	"log"
 
 //"time"
@@ -19,11 +20,12 @@ type EventStoreEntry struct {
 }
 
 func NewEventStoreEntryFrom(eventType byte, data []byte) *EventStoreEntry {
-	crc := int32(len(data))
+	//crc := int32(len(data))
+	crc := crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))
 	return NewEventStoreEntry(int32(len(data)), eventType, crc, data)
 }
 
-func NewEventStoreEntry(length int32, eventType byte, crc int32, data []byte) *EventStoreEntry {
+func NewEventStoreEntry(length int32, eventType byte, crc uint32, data []byte) *EventStoreEntry {
 	event := make([]byte, header_size+length)
 	event[0] = byte(length & 0x000F)
 	event[1] = byte(length & 0x00F0)
@@ -61,8 +63,8 @@ func (entry *EventStoreEntry) EventType() byte {
 }
 
 // Checksum of the trailing data block
-func (entry *EventStoreEntry) CRC() int32 {
-	return int32(entry.event[4])<<3 | int32(entry.event[5])<<2 | int32(entry.event[6])<<1 | int32(entry.event[7])
+func (entry *EventStoreEntry) CRC() uint32 {
+	return uint32(entry.event[4])<<3 | uint32(entry.event[5])<<2 | uint32(entry.event[6])<<1 | uint32(entry.event[7])
 }
 
 // Byte slice to hold the binary data

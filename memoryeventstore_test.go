@@ -19,7 +19,7 @@ func Test_Should_return_empty_slice_for_new_id(t *testing.T) {
 	uri := goes.NewAggregateRootUri("namespace", "type", 1)
 	events := make(chan *goes.EventStoreEntry, 1)
 	// Act
-	errors := eventStore.LoadAll(uri, events)
+	completed, errored := eventStore.LoadAll(uri, events)
 
 	// Assert
 	select {
@@ -28,12 +28,16 @@ func Test_Should_return_empty_slice_for_new_id(t *testing.T) {
 			log.Printf("Shouldn't have received any events: %s", event)
 			t.Fail()
 		}
-	case err := <-errors:
+	case <-completed:
 		{
-			if err == nil { // Returns Item not found error
-				//log.Printf("Shouldn't have received any errors: %s", err)
-				t.Fail()
-			}
+
+		}
+	case err := <-errored:
+		{
+			//if err == nil { // Returns Item not found error
+			log.Printf("Shouldn't have received any errors: %s", err)
+			t.Fail()
+			//}
 		}
 	case <-time.After(1 * time.Millisecond):
 		{
@@ -60,7 +64,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	eventStore.Append(uri, entry)
 
 	// Act
-	errors := eventStore.LoadAll(uri, events)
+	completed, errored := eventStore.LoadAll(uri, events)
 
 	// Assert
 	select {
@@ -71,7 +75,11 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 			AreEqual(t, int32(1), event.CRC(), "CRC should have been calculated")
 			AreAllEqual(t, data, event.Data(), "Data should have been set")
 		}
-	case err := <-errors:
+	case <-completed:
+		{
+
+		}
+	case err := <-errored:
 		{
 			log.Printf("Shouldn't have received any errors: %s", err)
 			t.Fail()
@@ -88,7 +96,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	// Arrange
 	eventStore, _ := goes.Connect("mem://")
-	uri := goes.NewAggregateRootUri("namespace", "type", 1)
+	uri := goes.NewAggregateRootUri("namespace", "kind", 1)
 	events := make(chan *goes.EventStoreEntry, 1)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -100,7 +108,7 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	eventStore.Append(uri, entry2)
 
 	// Act
-	errors := eventStore.LoadAll(uri, events)
+	completed, errored := eventStore.LoadAll(uri, events)
 
 	// Assert
 	select {
@@ -119,7 +127,11 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 					AreEqual(t, int32(2), event.CRC(), "CRC should have been calculated")
 					AreAllEqual(t, data, event.Data(), "Data should have been set")
 				}
-			case err := <-errors:
+			case <-completed:
+				{
+
+				}
+			case err := <-errored:
 				{
 					log.Printf("Shouldn't have received any errors: %s", err)
 					t.Fail()
@@ -131,7 +143,11 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 				}
 			}
 		}
-	case err := <-errors:
+	case <-completed:
+		{
+
+		}
+	case err := <-errored:
 		{
 			log.Printf("Shouldn't have received any errors: %s", err)
 			t.Fail()
@@ -175,7 +191,7 @@ func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_4084bytePayload(b *t
 }
 
 func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
-	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	//rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := 0; i < b.N; i++ {
@@ -186,7 +202,7 @@ func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
 func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	data := make([]byte, 10)
 	for index, _ := range data {
 		data[index] = byte(index)
@@ -217,7 +233,7 @@ func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testin
 func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_4084bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	data := make([]byte, 4084)
 	for index, _ := range data {
 		data[index] = byte(index)
