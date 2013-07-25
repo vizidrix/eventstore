@@ -3,7 +3,7 @@ package eventstore
 import (
 	"errors"
 	"fmt"
-	"log"
+	//"log"
 )
 
 type MemoryEventStore struct {
@@ -53,11 +53,8 @@ func (es *MemoryEventStore) Append(uri *AggregateRootUri, entries ...*EventStore
 	errorC := make(chan error)
 	go func() {
 		for _, entry := range entries {
-			data, err := entry.ToBinary()
-			if err != nil {
-				log.Printf("Error converting to binary: %s", entry)
-				errorC <- err
-			}
+			data := entry.ToBinary()
+
 			prevData := es.data[uri.RelativePath()]
 			newData := make([]byte, len(prevData)+len(data))
 			copy(newData, prevData)

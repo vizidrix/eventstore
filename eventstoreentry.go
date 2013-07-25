@@ -1,13 +1,14 @@
 package eventstore
 
 import (
-//"bytes"
-//"encoding/binary"
-//"errors"
-//"fmt"
-//"log"
+	//"errors"
+	//"fmt"
+	"log"
+
 //"time"
 )
+
+func ignore_eventstore() { log.Printf("") }
 
 const (
 	header_size = 8
@@ -33,6 +34,7 @@ func NewEventStoreEntry(length int32, eventType byte, crc int32, data []byte) *E
 	event[6] = byte(crc & 0x00F0)
 	event[7] = byte(crc & 0x000F)
 	copy(event[8:], data)
+	//log.Printf("Event: % x", event)
 	return &EventStoreEntry{
 		event: event,
 	}
@@ -50,9 +52,7 @@ func FromBinary(event []byte) *EventStoreEntry {
 
 // Length of the trailing data block
 func (entry *EventStoreEntry) Length() int32 {
-	//result := entry.data[2]<<2 & entry.data[1]<<1 & entry.data[0]
-	return int32(entry.event[2]) << 2 & int32(entry.event[1]) << 1 & int32(entry.event[0])
-	//return entry.length_type >> 4
+	return int32(entry.event[2])<<2 | int32(entry.event[1])<<1 | int32(entry.event[0])
 }
 
 // Identifier used by serializer to do it's magic
@@ -62,29 +62,43 @@ func (entry *EventStoreEntry) EventType() byte {
 
 // Checksum of the trailing data block
 func (entry *EventStoreEntry) CRC() int32 {
-	return int32(entry.event[4]) << 3 & int32(entry.event[5]) << 2 & int32(entry.event[6]) << 1 & int32(entry.event[7])
+	return int32(entry.event[4])<<3 | int32(entry.event[5])<<2 | int32(entry.event[6])<<1 | int32(entry.event[7])
 }
 
 // Byte slice to hold the binary data
 func (entry *EventStoreEntry) Data() []byte {
-	return entry.event[header_size:]
+	return entry.event[header_size : header_size+entry.Length()]
 }
 
+//  118010 ns/op
+// 3374469 ns/op
 /*
+ */
+
+/*
+
+Create_Serialize_DeSerialize:
+10 byte: 	 1451 ns/op
+4084 byte: 100089 ns/op
+
+
+import (
+	"bytes"
+	"encoding/binary"
+	//"errors"
+	//"fmt"
+	"log"
+
+//"time"
+)
+
 type EventStoreEntry struct {
 	length_type int32  // 3 bytes for len, 1 for type
 	crc         int32  // 4 bytes
 	data        []byte // Max 4096 (3 bytes) bytes less header (17 bytes)
 }
 
-func NewEventStoreEntryFrom(eventType byte, data []byte) (*EventStoreEntry, error) {
-	if eventType <= 0 || 255 <= eventType {
-		message := fmt.Sprintf("Invalid event type: %d", eventType)
-		return nil, errors.New(message)
-	}
-	//if len(data) == 0 {
-	//	return nil, errors.New("Empty data slice")
-	//}
+func NewEventStoreEntryFrom(eventType byte, data []byte) *EventStoreEntry {
 	return NewEventStoreEntry(
 		int32(len(data)),
 		eventType,
@@ -92,12 +106,12 @@ func NewEventStoreEntryFrom(eventType byte, data []byte) (*EventStoreEntry, erro
 		data)
 }
 
-func NewEventStoreEntry(length int32, eventType byte, crc int32, data []byte) (*EventStoreEntry, error) {
+func NewEventStoreEntry(length int32, eventType byte, crc int32, data []byte) *EventStoreEntry {
 	return &EventStoreEntry{
 		length_type: length<<4&0xFFF0 | int32(eventType),
 		crc:         crc,
 		data:        data,
-	}, nil
+	}
 }
 
 func WriteBinaryBatch(buffer *bytes.Buffer, data ...interface{}) error {
@@ -109,39 +123,30 @@ func WriteBinaryBatch(buffer *bytes.Buffer, data ...interface{}) error {
 	return nil
 }
 
-func (entry *EventStoreEntry) ToBinary() ([]byte, error) {
+func (entry *EventStoreEntry) ToBinary() []byte {
 	buffer := new(bytes.Buffer)
 
-	err := WriteBinaryBatch(buffer,
+	WriteBinaryBatch(buffer,
 		entry.length_type,
 		entry.crc,
 		entry.data)
 
-	if err != nil {
-		log.Printf("Error writing to buffer: %s", err)
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
+	return buffer.Bytes()
 }
 
-const (
-	header_size = 8
-)
-
-func FromBinary(data []byte) (*EventStoreEntry, error) {
+func FromBinary(data []byte) *EventStoreEntry {
 	buffer := bytes.NewBuffer(data)
 	entry := EventStoreEntry{}
 	if err := binary.Read(buffer, binary.LittleEndian, &entry.length_type); err != nil {
-		return nil, err
+		return nil
 	}
 	if err := binary.Read(buffer, binary.LittleEndian, &entry.crc); err != nil {
-		return nil, err
+		return nil
 	}
 	entry.data = data[header_size : header_size+entry.Length()]
 	data = data[header_size+entry.Length():]
 
-	return &entry, nil
+	return &entry
 }
 
 // Length of the trailing data block
@@ -163,4 +168,6 @@ func (entry *EventStoreEntry) CRC() int32 {
 func (entry *EventStoreEntry) Data() []byte {
 	return entry.data
 }
+
+/*
 */

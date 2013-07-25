@@ -2,6 +2,7 @@ package eventstore_test
 
 import (
 	//"encoding/binary"
+	//"bytes"
 	goes "github.com/vizidrix/eventstore"
 	. "github.com/vizidrix/eventstore/test_utils"
 	"log"
@@ -55,7 +56,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry, _ := goes.NewEventStoreEntry(10, 1, 1, data)
+	entry := goes.NewEventStoreEntry(10, 1, 1, data)
 	eventStore.Append(uri, entry)
 
 	// Act
@@ -93,8 +94,8 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry1, _ := goes.NewEventStoreEntry(10, 1, 1, data)
-	entry2, _ := goes.NewEventStoreEntry(10, 2, 2, data)
+	entry1 := goes.NewEventStoreEntry(10, 1, 1, data)
+	entry2 := goes.NewEventStoreEntry(10, 2, 2, data)
 	eventStore.Append(uri, entry1)
 	eventStore.Append(uri, entry2)
 
@@ -143,6 +144,45 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	}
 }
 
+func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_10bytePayload(b *testing.B) {
+	b.StopTimer()
+	data := make([]byte, 10)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		entry := goes.NewEventStoreEntry(10, 1, 1, data)
+		temp := entry.ToBinary()
+		goes.FromBinary(temp)
+	}
+}
+
+func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_4084bytePayload(b *testing.B) {
+	b.StopTimer()
+	data := make([]byte, 4084)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		entry := goes.NewEventStoreEntry(4084, 1, 1, data)
+		temp := entry.ToBinary()
+		goes.FromBinary(temp)
+	}
+}
+
+func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
+	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	//rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	for i := 0; i < b.N; i++ {
+		kindUri.ToAggregateRootUri(10000)
+	}
+}
+
 func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
@@ -151,12 +191,16 @@ func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testin
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry1, _ := goes.NewEventStoreEntry(10, 1, 1, data)
+	entry1 := goes.NewEventStoreEntry(10, 1, 1, data)
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	ids := make([]int64, b.N)
+	for i := 0; i < b.N; i++ {
+		ids[i] = rnd.Int63()
+	}
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		uri := kindUri.ToAggregateRootUri(rnd.Int63())
+		uri := kindUri.ToAggregateRootUri(ids[i])
 		complete, errors := eventStore.Append(uri, entry1)
 		select {
 		case <-complete:
@@ -178,12 +222,16 @@ func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_4084bytePayload(b *test
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry1, _ := goes.NewEventStoreEntry(4084, 1, 1, data)
+	entry1 := goes.NewEventStoreEntry(4084, 1, 1, data)
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	ids := make([]int64, b.N)
+	for i := 0; i < b.N; i++ {
+		ids[i] = rnd.Int63()
+	}
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		uri := kindUri.ToAggregateRootUri(rnd.Int63())
+		uri := kindUri.ToAggregateRootUri(ids[i])
 		complete, errors := eventStore.Append(uri, entry1)
 		select {
 		case <-complete:
