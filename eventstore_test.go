@@ -177,6 +177,7 @@ func Test_Should_create_aggregate_by_uri(t *testing.T) {
 }
 */
 
+/*
 func Benchmark_NewKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		goes.NewKey()
@@ -194,3 +195,4 @@ func Benchmark_AppendEvent(b *testing.B) {
 		//aggregate, err := kind.Aggregate(id)
 	}
 }
+*/

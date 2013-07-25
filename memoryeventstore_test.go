@@ -5,6 +5,7 @@ import (
 	goes "github.com/vizidrix/eventstore"
 	. "github.com/vizidrix/eventstore/test_utils"
 	"log"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -54,7 +55,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry, _ := goes.NewEventStoreEntry(10, 1, 1, 1, data)
+	entry, _ := goes.NewEventStoreEntry(10, 1, 1, data)
 	eventStore.Append(uri, entry)
 
 	// Act
@@ -64,12 +65,9 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	select {
 	case event := <-events:
 		{
-			//AreEqual(t, 1, len(events), "Event list should have had appended value")
-
 			AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
-			AreEqual(t, int32(1), event.CRC(), "CRC should have been calculated")
-			AreEqual(t, int64(1), event.UnixTimeStamp(), "TimeStamp should have been set")
 			AreEqual(t, byte(1), event.EventType(), "EvenType should have been set")
+			AreEqual(t, int32(1), event.CRC(), "CRC should have been calculated")
 			AreAllEqual(t, data, event.Data(), "Data should have been set")
 		}
 	case err := <-errors:
@@ -95,8 +93,8 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	entry1, _ := goes.NewEventStoreEntry(10, 1, 1, 1, data)
-	entry2, _ := goes.NewEventStoreEntry(10, 2, 2, 2, data)
+	entry1, _ := goes.NewEventStoreEntry(10, 1, 1, data)
+	entry2, _ := goes.NewEventStoreEntry(10, 2, 2, data)
 	eventStore.Append(uri, entry1)
 	eventStore.Append(uri, entry2)
 
@@ -107,23 +105,17 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	select {
 	case event := <-events:
 		{
-			//AreEqual(t, 1, len(events), "Event list should have had appended value")
-
 			AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
-			AreEqual(t, int32(1), event.CRC(), "CRC should have been calculated")
-			AreEqual(t, int64(1), event.UnixTimeStamp(), "TimeStamp should have been set")
 			AreEqual(t, byte(1), event.EventType(), "EvenType should have been set")
+			AreEqual(t, int32(1), event.CRC(), "CRC should have been calculated")
 			AreAllEqual(t, data, event.Data(), "Data should have been set")
 
 			select {
 			case event := <-events:
 				{
-					//AreEqual(t, 1, len(events), "Event list should have had appended value")
-
 					AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
-					AreEqual(t, int32(2), event.CRC(), "CRC should have been calculated")
-					AreEqual(t, int64(2), event.UnixTimeStamp(), "TimeStamp should have been set")
 					AreEqual(t, byte(2), event.EventType(), "EvenType should have been set")
+					AreEqual(t, int32(2), event.CRC(), "CRC should have been calculated")
 					AreAllEqual(t, data, event.Data(), "Data should have been set")
 				}
 			case err := <-errors:
@@ -149,23 +141,58 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
 
-	/*
-		AreEqual(t, 2, len(events), "Event list should have had appended value")
+func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	data := make([]byte, 10)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1, _ := goes.NewEventStoreEntry(10, 1, 1, data)
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b.StartTimer()
 
-		AreEqual(t, int32(10), events[0].Length(), "Length should have been int32 10")
-		AreEqual(t, int32(1), events[0].CRC(), "CRC should have been calculated")
-		AreEqual(t, int64(1), events[0].UnixTimeStamp(), "TimeStamp should have been set")
-		AreEqual(t, byte(1), events[0].EventType(), "EvenType should have been set")
-		AreAllEqual(t, data, events[0].Data(), "Data should have been set")
-
-		if len(events) < 2 {
-			return
+	for i := 0; i < b.N; i++ {
+		uri := kindUri.ToAggregateRootUri(rnd.Int63())
+		complete, errors := eventStore.Append(uri, entry1)
+		select {
+		case <-complete:
+			{
+			}
+		case err := <-errors:
+			{
+				log.Printf("Error: %s", err)
+			}
 		}
-		AreEqual(t, int32(10), events[1].Length(), "Length should have been int32 10")
-		AreEqual(t, int32(2), events[1].CRC(), "CRC should have been calculated")
-		AreEqual(t, int64(2), events[1].UnixTimeStamp(), "TimeStamp should have been set")
-		AreEqual(t, byte(2), events[1].EventType(), "EvenType should have been set")
-		AreAllEqual(t, data, events[1].Data(), "Data should have been set")
-	*/
+	}
+}
+
+func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_4084bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "type")
+	data := make([]byte, 4084)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1, _ := goes.NewEventStoreEntry(4084, 1, 1, data)
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		uri := kindUri.ToAggregateRootUri(rnd.Int63())
+		complete, errors := eventStore.Append(uri, entry1)
+		select {
+		case <-complete:
+			{
+			}
+		case err := <-errors:
+			{
+				log.Printf("Error: %s", err)
+			}
+		}
+	}
 }

@@ -14,7 +14,20 @@ _
 /
 
 
+Independent bits of command validation separated so it can be run at the boundaries
 
+Make a memory map impl to test against also
+
+
+Constraints:
+- Events are immutable
+	- No need to accomodate updates
+- Events are permanent
+	- Need to accomodate physical deletion but only for repartitioning
+	- Applications shouldn't have access only infrastructure layers
+- Event data is opaque
+	- No indexing beyond message header fields
+	- No searching inside, view handlers are responsible for that
 
   Event Format
 
@@ -23,6 +36,12 @@ Folder per Domain
 		-> File per Aggregate Id
 
 
+V3:
+[ Int32 					| Int32 | byte[]	]
+[ 3 bytes 		| 1 bytes 	|		|			]
+[ LEN 4084 MAX  | EventType	| CRC	| DATA 		]
+
+V2:
 [ Int32 | Int32 | Int32                 			| byte[] ]
 [ Int32 | Int32 | Byte	      | 3 Byte  			| byte[] ]
 [ CRC	| TS	| EventType   | LEN 4084 MAX		| DATA	 ]
@@ -31,7 +50,7 @@ Folder per Domain
 
 
 
-
+V1:
 [ Int32 | Int32 | 2xInt64 							| Int32 | byte[] ]
 [ CRC	| TS	| Domain 30 bytes + Type 2 bytes    | LEN 	| DATA	 ]
 [ 		| 		| 20 packed char + 256 indexed ids	| 		|		 ]

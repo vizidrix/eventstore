@@ -26,14 +26,12 @@ type BinSerializable interface {
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
 	LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) <-chan error
-	// Returns an array of all EventStoreEntry's for the aggregate uri that were logged between the TimeStamp range provided
-	LoadTSRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startTS int32, endTS int32) <-chan error
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
 	LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) <-chan error
 }
 
 type WriteEventStorer interface {
-	Append(uri *AggregateRootUri, entries ...*EventStoreEntry) <-chan error
+	Append(uri *AggregateRootUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
 }
 
 type EventStorer interface {
