@@ -7,22 +7,34 @@ import (
 type FileSystemEventStore struct {
 }
 
-func (es *FileSystemEventStore) GetById(uri *AggregateRootUri) ([]EventStoreEntry, error) {
-	log.Printf("FileSystemEventStore GetById")
-	return nil, nil
+func NewFileSystemEventStore() *FileSystemEventStore {
+	return &FileSystemEventStore{}
 }
 
-func (es *FileSystemEventStore) GetByTSRange(uri *AggregateRootUri, startTS int32, endTS int32) ([]EventStoreEntry, error) {
-	log.Printf("FileSystemEventStore GetByTSRange")
-	return nil, nil
+func (es *FileSystemEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) <-chan error {
+	log.Printf("FileSystemEventStore LoadAll")
+	errorChan := make(chan error)
+
+	return errorChan
 }
 
-func (es *FileSystemEventStore) GetByIndexRange(uri *AggregateRootUri, startIndex uint64, endIndex uint64) ([]EventStoreEntry, error) {
-	log.Printf("FileSystemEventStore GetByIndexRange")
-	return nil, nil
+func (es *FileSystemEventStore) LoadTSRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startTS int32, endTS int32) <-chan error {
+	log.Printf("FileSystemEventStore LoadTSRange")
+	errorChan := make(chan error)
+
+	return errorChan
 }
 
-func (es *FileSystemEventStore) Append(uri *AggregateRootUri, entries ...EventStoreEntry) error {
+func (es *FileSystemEventStore) LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) <-chan error {
+	log.Printf("FileSystemEventStore LoadIndexRange")
+	errorChan := make(chan error)
+
+	return errorChan
+}
+
+func (es *FileSystemEventStore) Append(uri *AggregateRootUri, entries ...*EventStoreEntry) <-chan error {
 	log.Printf("FileSystemEventStore Append")
-	return nil
+	errorChan := make(chan error)
+
+	return errorChan
 }

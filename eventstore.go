@@ -23,25 +23,17 @@ type BinSerializable interface {
 	FromBinary([]byte) (interface{}, error)
 }
 
-type EventStoreEntry struct {
-	CRC           int32
-	UnixTimeStamp int32
-	EventType     byte
-	Length        uint32 // Max 4096 bytes
-	Data          []byte
-}
-
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	GetById(uri *AggregateRootUri) ([]EventStoreEntry, error)
+	LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) <-chan error
 	// Returns an array of all EventStoreEntry's for the aggregate uri that were logged between the TimeStamp range provided
-	GetByTSRange(uri *AggregateRootUri, startTS int32, endTS int32) ([]EventStoreEntry, error)
+	LoadTSRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startTS int32, endTS int32) <-chan error
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	GetByIndexRange(uri *AggregateRootUri, startIndex uint64, endIndex uint64) ([]EventStoreEntry, error)
+	LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) <-chan error
 }
 
 type WriteEventStorer interface {
-	Append(uri *AggregateRootUri, entries ...EventStoreEntry) error
+	Append(uri *AggregateRootUri, entries ...*EventStoreEntry) <-chan error
 }
 
 type EventStorer interface {
@@ -51,9 +43,9 @@ type EventStorer interface {
 
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "fs://") {
-		return &FileSystemEventStore{}, nil
+		return NewFileSystemEventStore(), nil
 	} else if strings.HasPrefix(connString, "mem://") {
-		return &MemoryEventStore{}, nil
+		return NewMemoryEventStore(), nil
 	} else {
 		return nil, errors.New("Unable to find delimiter in connection string")
 	}
