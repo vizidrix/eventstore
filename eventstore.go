@@ -18,6 +18,19 @@ import (
 
 func ignore() { log.Println(fmt.Sprintf("", 10)) }
 
+const MaxUint = ^uint(0)
+const MinUint = 0
+const MaxInt = int(^uint(0) >> 1)
+const MinInt = -(MaxInt - 1)
+const MaxUint32 = ^uint32(0)
+const MinUint32 = 0
+const MaxInt32 = int32(^uint32(0) >> 1)
+const MinInt32 = -(MaxInt - 1)
+const MaxUint64 = ^uint64(0)
+const MinUint64 = 0
+const MaxInt64 = int64(^uint64(0) >> 1)
+const MinInt64 = -(MaxInt - 1)
+
 type BinSerializable interface {
 	ToBinary() ([]byte, error)
 	FromBinary([]byte) (interface{}, error)

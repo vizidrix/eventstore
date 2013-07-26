@@ -71,6 +71,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 
 	// Act
 	completed, errored := eventStore.LoadAll(uri, events)
+
 	select {
 	case <-completed:
 		{
@@ -92,9 +93,68 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 
 	// Assert
 	AreEqual(t, int32(10), actual.Length(), "Length should have been int32 10")
-	AreEqual(t, byte(1), actual.EventType(), "EvenType should have been set")
+	AreEqual(t, uint16(1), actual.EventType(), "EvenType should have been set")
 	AreEqual(t, uint32(1), actual.CRC(), "CRC should have been calculated")
 	AreAllEqual(t, data, actual.Data(), "Data should have been set")
+}
+
+func Test_Should_return_middle_events_for_version_range(t *testing.T) {
+	// Arrange
+	eventstore, _ := goes.Connect("mem://")
+	uri := goes.NewAggregateRootUri("namespace", "kind", 1)
+	events := make(chan *goes.EventStoreEntry, 5)
+	data := make([]byte, 10)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	for index := 0; index < 5; index++ {
+		entry := goes.NewEventStoreEntry(10, uint16(index), uint32(index), data)
+		appendCompleted, _ := eventstore.Append(uri, entry)
+		<-appendCompleted
+	}
+
+	// Act
+	completed, errored := eventstore.LoadIndexRange(uri, events, 2, 3)
+
+	select {
+	case <-completed:
+		{
+		}
+	case err := <-errored:
+		{
+			log.Printf("Shouldn't have received any errors: %s", err)
+			t.Fail()
+			return
+		}
+	case <-time.After(1000 * time.Millisecond):
+		{
+			log.Printf("Shouldn't have timed out")
+			t.Fail()
+			return
+		}
+	}
+
+	// Assert
+	for index := 0; index < 2; index++ {
+		//log.Printf("Index: %d", index)
+		select {
+		case event := <-events:
+			{
+				//log.Printf("Event received: % x", event)
+
+				AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
+				AreEqual(t, uint16(index), event.EventType(), "EvenType should have been set")
+				AreEqual(t, uint32(index), event.CRC(), "CRC should have been calculated")
+				AreAllEqual(t, data, event.Data(), "Data should have been set")
+			}
+		case <-time.After(1 * time.Millisecond):
+			{
+				log.Printf("Shouldn't have timed out")
+				t.Fail()
+				return
+			}
+		}
+	}
 }
 
 func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
@@ -141,7 +201,7 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 				//log.Printf("Event received: % x", event)
 
 				AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
-				AreEqual(t, byte(index), event.EventType(), "EvenType should have been set")
+				AreEqual(t, uint16(index), event.EventType(), "EvenType should have been set")
 				AreEqual(t, uint32(index), event.CRC(), "CRC should have been calculated")
 				AreAllEqual(t, data, event.Data(), "Data should have been set")
 			}
