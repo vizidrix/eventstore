@@ -1,10 +1,12 @@
 package eventstore
 
 import (
-//"errors"
-//"fmt"
-//"log"
+	//"errors"
+	//"fmt"
+	"log"
 )
+
+func ignore_memoryeventstore() { log.Printf("") }
 
 type MemoryEventStore struct {
 	datastore map[string]map[string]map[int64][]byte
@@ -40,6 +42,7 @@ func (es *MemoryEventStore) AppendRaw(uri *AggregateRootUri, entry []byte) {
 	newData := make([]byte, len(prevData)+len(entry))
 	copy(newData, prevData)
 	copy(newData[len(prevData):], entry)
+	es.datastore[uri.namespace][uri.kind][uri.id] = newData
 }
 
 func (es *MemoryEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
@@ -56,6 +59,7 @@ func (es *MemoryEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *Event
 
 			entries <- entry
 		}
+		//log.Printf("LoadAll Index: %d", index)
 		completed <- struct{}{}
 	}()
 	return completed, errored
@@ -76,14 +80,6 @@ func (es *MemoryEventStore) Append(uri *AggregateRootUri, entries ...*EventStore
 			data := entry.ToBinary()
 
 			es.AppendRaw(uri, data)
-
-			//prevData := LoadRaw(uri)
-			//prevData := es.data[uri.Namespace()][uri.Kind()][uri.Id()]
-			//prevData := es.data[uri.RelativePath()]
-			//newData := make([]byte, len(prevData)+len(data))
-			//copy(newData, prevData)
-			//copy(newData[len(prevData):], data)
-			//es.data[uri.Namespace()][uri.Kind()][uri.Id()] = newData
 		}
 		completed <- struct{}{}
 	}()

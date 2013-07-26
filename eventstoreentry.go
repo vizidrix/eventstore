@@ -20,23 +20,21 @@ type EventStoreEntry struct {
 }
 
 func NewEventStoreEntryFrom(eventType byte, data []byte) *EventStoreEntry {
-	//crc := int32(len(data))
 	crc := crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))
 	return NewEventStoreEntry(int32(len(data)), eventType, crc, data)
 }
 
 func NewEventStoreEntry(length int32, eventType byte, crc uint32, data []byte) *EventStoreEntry {
 	event := make([]byte, header_size+length)
-	event[0] = byte(length & 0x000F)
+	event[0] = byte(length & 0x0F00)
 	event[1] = byte(length & 0x00F0)
-	event[2] = byte(length & 0x0F00)
+	event[2] = byte(length & 0x000F)
 	event[3] = eventType
-	event[4] = byte(crc & 0xF000)
-	event[5] = byte(crc & 0x0F00)
-	event[6] = byte(crc & 0x00F0)
-	event[7] = byte(crc & 0x000F)
+	event[4] = byte((crc & 0xFF000000) >> 24)
+	event[5] = byte((crc & 0x00FF0000) >> 16)
+	event[6] = byte((crc & 0x0000FF00) >> 8)
+	event[7] = byte((crc & 0x000000FF))
 	copy(event[8:], data)
-	//log.Printf("Event: % x", event)
 	return &EventStoreEntry{
 		event: event,
 	}
@@ -54,7 +52,7 @@ func FromBinary(event []byte) *EventStoreEntry {
 
 // Length of the trailing data block
 func (entry *EventStoreEntry) Length() int32 {
-	return int32(entry.event[2])<<2 | int32(entry.event[1])<<1 | int32(entry.event[0])
+	return int32(entry.event[0])<<2 | int32(entry.event[1])<<1 | int32(entry.event[2])
 }
 
 // Identifier used by serializer to do it's magic
@@ -64,7 +62,7 @@ func (entry *EventStoreEntry) EventType() byte {
 
 // Checksum of the trailing data block
 func (entry *EventStoreEntry) CRC() uint32 {
-	return uint32(entry.event[4])<<3 | uint32(entry.event[5])<<2 | uint32(entry.event[6])<<1 | uint32(entry.event[7])
+	return uint32(entry.event[4])<<24 | uint32(entry.event[5])<<16 | uint32(entry.event[6])<<8 | uint32(entry.event[7])
 }
 
 // Byte slice to hold the binary data
