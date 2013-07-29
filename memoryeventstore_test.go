@@ -363,88 +363,93 @@ func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
 	}
 }
 
-func Benchmark_MemoryEventStore_Sync_AppendOnly_10bytePayload(b *testing.B) {
+func Benchmark_MemoryEventStore_AppendOnly_10bytePayload(b *testing.B) {
+	Run_AppendOnly(b, "mem://", "namespace", "kind", 10, 1)
+}
+
+func Benchmark_MemoryEventStore_AppendOnly_4084bytePayload(b *testing.B) {
+	Run_AppendOnly(b, "mem://", "namespace", "kind", 4084, 1)
+}
+
+func Benchmark_MemoryEventStore_ReadOnly_10bytePayload(b *testing.B) {
+	Run_ReadOnly(b, "mem://", "namespace", "kind", 10, 1)
+}
+
+func Benchmark_MemoryEventStore_ReadOnly_4084bytePayload(b *testing.B) {
+	Run_ReadOnly(b, "mem://", "namespace", "kind", 4084, 1)
+}
+
+func Benchmark_MemoryEventStore_AppendAndReadAll_10bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	entry := Get_EventStoreEntry(10)
 	b.StartTimer()
 
-	Run_Sync_AppendOnly(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Sync_AppendOnly_4084bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_Sync_AppendOnly(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_10bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_Sync_AppendAndReadAll(b, eventStore, kindUri, entry)
+	Run_AppendAndReadAll(b, eventStore, kindUri, entry)
 }
 
 // 256 4k events / 1mb
 // 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
-func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_4084bytePayload(b *testing.B) {
+func Benchmark_MemoryEventStore_AppendAndReadAll_4084bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	entry := Get_EventStoreEntry(4084)
 	b.StartTimer()
 
-	Run_Sync_AppendAndReadAll(b, eventStore, kindUri, entry)
+	Run_AppendAndReadAll(b, eventStore, kindUri, entry)
 }
 
-func Benchmark_MemoryEventStore_Sync_AppendOnly_20_10bytePayloads(b *testing.B) {
+func Benchmark_MemoryEventStore_AppendOnly_20_10bytePayloads(b *testing.B) {
+	Run_AppendOnly(b, "mem://", "namespace", "kind", 10, 20)
+}
+
+func Benchmark_MemoryEventStore_AppendOnly_20_4084bytePayloads(b *testing.B) {
+	Run_AppendOnly(b, "mem://", "namespace", "kind", 4084, 20)
+}
+
+func Benchmark_MemoryEventStore_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	entry := Get_EventStoreEntry(10)
 	b.StartTimer()
 
-	Run_Sync_AppendOnly_Multiples(b, eventStore, kindUri, entry, 20)
-}
-
-func Benchmark_MemoryEventStore_Sync_AppendOnly_20_4084bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_Sync_AppendOnly_Multiples(b, eventStore, kindUri, entry, 20)
-}
-
-func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_Sync_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+	Run_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
 }
 
 // 256 4k events / 1mb
 // 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
-func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
+func Benchmark_MemoryEventStore_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
 	entry := Get_EventStoreEntry(4084)
 	b.StartTimer()
 
-	Run_Sync_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+	Run_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+/*
+func Benchmark_MemoryEventStore_Async_AppendOnly_10bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Async_AppendOnly(b, eventStore, kindUri, entry)
+}
+
+func Benchmark_MemoryEventStore_Async_AppendOnly_4084bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Async_AppendOnly(b, eventStore, kindUri, entry)
 }
 
 func Benchmark_MemoryEventStore_Async_AppendAndReadAll_10bytePayload(b *testing.B) {
@@ -486,3 +491,4 @@ func Benchmark_MemoryEventStore_Async_AppendAndReadAll_20_4084bytePayloads(b *te
 
 	Run_Async_AppendAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
 }
+*/
