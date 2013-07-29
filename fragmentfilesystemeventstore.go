@@ -8,7 +8,7 @@ type FragmentFileSystemEventStore struct {
 }
 
 func NewFragmentFileSystemEventStore() EventStorer {
-	return &FileSystemEventStore{}
+	return &FragmentFileSystemEventStore{}
 }
 
 func (es *FragmentFileSystemEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {

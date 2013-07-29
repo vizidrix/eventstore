@@ -47,44 +47,46 @@ func (es *MemoryEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStor
 func (es *MemoryEventStore) LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
 	completed := make(chan struct{}, 1)
 	errored := make(chan error)
-	go func() {
-		defer func() {
-			completed <- struct{}{}
-		}()
-		index := uint64(0)
-		data := es.LoadRaw(uri)
-		totalLength := len(data)
-
-		for position := 0; position < totalLength; index++ {
-			// If the top bound is reached then abort the loop
-			if index > endIndex {
-				break
-			}
-			// Find the length of the current entry's data
-			entryLength := int(UInt12(data[position : position+3]))
-			// Only return entries inside the range
-			if index >= startIndex {
-				// Load and return the entry at this index
-				entry := FromBinary(data[position : position+HEADER_SIZE+entryLength])
-				entries <- entry
-			}
-			// Move the position cursor to the next event
-			position = position + HEADER_SIZE + entryLength
-		}
+	//go func() {
+	defer func() {
+		completed <- struct{}{}
 	}()
+	index := uint64(0)
+	data := es.LoadRaw(uri)
+	totalLength := len(data)
+
+	for position := 0; position < totalLength; index++ {
+		// If the top bound is reached then abort the loop
+		if index > endIndex {
+			break
+		}
+		// Find the length of the current entry's data
+		entryLength := int(UInt12(data[position : position+3]))
+		// Only return entries inside the range
+		if index >= startIndex {
+			// Load and return the entry at this index
+			entry := FromBinary(data[position : position+HEADER_SIZE+entryLength])
+			entries <- entry
+		}
+		// Move the position cursor to the next event
+		position = position + HEADER_SIZE + entryLength
+	}
+	//}()
 	return completed, errored
 }
 
 func (es *MemoryEventStore) Append(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
-	completed := make(chan struct{})
+	completed := make(chan struct{}, 1)
 	errored := make(chan error)
-	go func() {
-		for _, entry := range entries {
-			data := entry.ToBinary()
-
-			es.AppendRaw(uri, data)
-		}
+	//go func() {
+	defer func() {
 		completed <- struct{}{}
 	}()
+	for _, entry := range entries {
+		data := entry.ToBinary()
+
+		es.AppendRaw(uri, data)
+	}
+	//}()
 	return completed, errored
 }

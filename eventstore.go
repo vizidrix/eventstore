@@ -53,10 +53,10 @@ type EventStorer interface {
 }
 
 func Connect(connString string) (EventStorer, error) {
-	if strings.HasPrefix(connString, "fs://") {
-		return NewFileSystemEventStore(), nil
-	} else if strings.HasPrefix(connString, "ffs://") {
+	if strings.HasPrefix(connString, "ffs://") {
 		return NewFragmentFileSystemEventStore(), nil
+	} else if strings.HasPrefix(connString, "fs://") {
+		return NewFileSystemEventStore(), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryEventStore(), nil
 	} else {
