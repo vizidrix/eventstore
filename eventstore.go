@@ -38,13 +38,13 @@ type BinSerializable interface {
 
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+	LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
+	LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
 }
 
 type WriteEventStorer interface {
-	Append(uri *AggregateRootUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+	Append(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
 }
 
 type EventStorer interface {
@@ -55,6 +55,8 @@ type EventStorer interface {
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "fs://") {
 		return NewFileSystemEventStore(), nil
+	} else if strings.HasPrefix(connString, "ffs://") {
+		return NewFragmentFileSystemEventStore(), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryEventStore(), nil
 	} else {

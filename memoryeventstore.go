@@ -9,47 +9,42 @@ import (
 func ignore_memoryeventstore() { log.Printf("") }
 
 type MemoryEventStore struct {
-	datastore map[string]map[string]map[int64][]byte
+	datastore map[uint32]map[int64][]byte
 }
 
 func NewMemoryEventStore() EventStorer {
 	return &MemoryEventStore{
-		datastore: make(map[string]map[string]map[int64][]byte),
+		datastore: make(map[uint32]map[int64][]byte),
 	}
 }
 
-func (es *MemoryEventStore) LoadRaw(uri *AggregateRootUri) []byte {
-	namespace, foundNamespace := es.datastore[uri.Namespace()]
-	if !foundNamespace {
-		namespace = make(map[string]map[int64][]byte)
-		es.datastore[uri.namespace] = namespace
+func (es *MemoryEventStore) LoadRaw(uri *AggregateUri) []byte {
+	partition, foundPartition := es.datastore[uri.Hash()]
+	if !foundPartition {
+		partition = make(map[int64][]byte)
+		es.datastore[uri.Hash()] = partition
 	}
-	kind, foundKind := namespace[uri.Kind()]
-	if !foundKind {
-		kind = make(map[int64][]byte)
-		namespace[uri.Kind()] = kind
-	}
-	aggregate, foundAggregate := kind[uri.Id()]
+	aggregate, foundAggregate := partition[uri.Id()]
 	if !foundAggregate {
 		aggregate = make([]byte, 0)
-		kind[uri.Id()] = aggregate
+		partition[uri.Id()] = aggregate
 	}
 	return aggregate
 }
 
-func (es *MemoryEventStore) AppendRaw(uri *AggregateRootUri, entry []byte) {
+func (es *MemoryEventStore) AppendRaw(uri *AggregateUri, entry []byte) {
 	prevData := es.LoadRaw(uri)
 	newData := make([]byte, len(prevData)+len(entry))
 	copy(newData, prevData)
 	copy(newData[len(prevData):], entry)
-	es.datastore[uri.namespace][uri.kind][uri.id] = newData
+	es.datastore[uri.Hash()][uri.Id()] = newData
 }
 
-func (es *MemoryEventStore) LoadAll(uri *AggregateRootUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *MemoryEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	return es.LoadIndexRange(uri, entries, 0, MaxUint64)
 }
 
-func (es *MemoryEventStore) LoadIndexRange(uri *AggregateRootUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *MemoryEventStore) LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
 	completed := make(chan struct{}, 1)
 	errored := make(chan error)
 	go func() {
@@ -80,7 +75,7 @@ func (es *MemoryEventStore) LoadIndexRange(uri *AggregateRootUri, entries chan<-
 	return completed, errored
 }
 
-func (es *MemoryEventStore) Append(uri *AggregateRootUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *MemoryEventStore) Append(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	completed := make(chan struct{})
 	errored := make(chan error)
 	go func() {

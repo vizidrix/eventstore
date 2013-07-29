@@ -17,7 +17,8 @@ func ignore_memoryeventstore_test() { log.Println("") }
 func Test_Should_return_empty_slice_for_new_id(t *testing.T) {
 	// Arrange
 	eventStore, _ := goes.Connect("mem://")
-	uri := goes.NewAggregateRootUri("namespace", "type", 1)
+	kind := goes.NewAggregateKind("namespace", "type")
+	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 
 	// Act
@@ -59,7 +60,8 @@ func Test_Should_return_empty_slice_for_new_id(t *testing.T) {
 func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	// Arrange
 	eventStore, _ := goes.Connect("mem://")
-	uri := goes.NewAggregateRootUri("namespace", "type", 1)
+	kind := goes.NewAggregateKind("namespace", "type")
+	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -101,7 +103,8 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 func Test_Should_return_middle_events_for_version_range(t *testing.T) {
 	// Arrange
 	eventstore, _ := goes.Connect("mem://")
-	uri := goes.NewAggregateRootUri("namespace", "kind", 1)
+	kind := goes.NewAggregateKind("namespace", "kind")
+	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 5)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -160,7 +163,8 @@ func Test_Should_return_middle_events_for_version_range(t *testing.T) {
 func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 	// Arrange
 	eventStore, _ := goes.Connect("mem://")
-	uri := goes.NewAggregateRootUri("namespace", "kind", 1)
+	kind := goes.NewAggregateKind("namespace", "kind")
+	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 2)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -233,14 +237,14 @@ func Test_Should_produce_correct_CRC_for_event_entry(t *testing.T) {
 
 func Test_Should_not_panic_when_range_is_too_long(t *testing.T) {
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	kind := goes.NewAggregateKind("namespace", "kind")
 	data := make([]byte, goes.MAX_EVENT_SIZE)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE, 1, 1, data)
 	events := make(chan *goes.EventStoreEntry, 1)
-	uri := kindUri.ToAggregateRootUri(1)
+	uri := kind.ToAggregateUri(1)
 	complete, _ := eventStore.Append(uri, entry1)
 	<-complete
 	readComplete, _ := eventStore.LoadIndexRange(uri, events, 0, 4)
@@ -255,13 +259,13 @@ func Test_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t *t
 		}
 	}()
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	kind := goes.NewAggregateKind("namespace", "kind")
 	data := make([]byte, goes.MAX_EVENT_SIZE+1)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE+1, 1, 1, data)
-	uri := kindUri.ToAggregateRootUri(1)
+	uri := kind.ToAggregateUri(1)
 	complete, _ := eventStore.Append(uri, entry1)
 	<-complete
 }
@@ -274,13 +278,13 @@ func Test_Should_panic_when_reported_event_length_greater_than_actual_in_uncheck
 		}
 	}()
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	kind := goes.NewAggregateKind("namespace", "kind")
 	data := make([]byte, 3082) // <- set to less than length
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(3083, 1, 1, data) // <- invalid length!
-	uri := kindUri.ToAggregateRootUri(1)
+	uri := kind.ToAggregateUri(1)
 	complete, _ := eventStore.Append(uri, entry1)
 	<-complete
 }
@@ -289,7 +293,7 @@ func Test_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testin
 	count := 2
 
 	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	kind := goes.NewAggregateKind("namespace", "kind")
 	data := make([]byte, 10)
 	for index, _ := range data {
 		data[index] = byte(index)
@@ -301,7 +305,7 @@ func Test_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testin
 	for i := 0; i < count; i++ {
 		index := i
 		go func() {
-			uri := kindUri.ToAggregateRootUri(int64(index))
+			uri := kind.ToAggregateUri(int64(index))
 			appendComplete, _ := eventStore.Append(uri, entry1)
 			<-appendComplete
 			events := make(chan *goes.EventStoreEntry)
@@ -356,10 +360,10 @@ func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_4084bytePayload(b *t
 }
 
 func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	kind := goes.NewAggregateKind("namespace", "kind")
 
 	for i := 0; i < b.N; i++ {
-		kindUri.ToAggregateRootUri(10000)
+		kind.ToAggregateUri(10000)
 	}
 }
 
@@ -380,25 +384,13 @@ func Benchmark_MemoryEventStore_ReadOnly_4084bytePayload(b *testing.B) {
 }
 
 func Benchmark_MemoryEventStore_AppendAndReadAll_10bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_AppendAndReadAll(b, eventStore, kindUri, entry)
+	Run_AppendAndReadAll(b, "mem://", "namespace", "kind", 10, 1)
 }
 
 // 256 4k events / 1mb
 // 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
 func Benchmark_MemoryEventStore_AppendAndReadAll_4084bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_AppendAndReadAll(b, eventStore, kindUri, entry)
+	Run_AppendAndReadAll(b, "mem://", "namespace", "kind", 4084, 1)
 }
 
 func Benchmark_MemoryEventStore_AppendOnly_20_10bytePayloads(b *testing.B) {
@@ -410,85 +402,9 @@ func Benchmark_MemoryEventStore_AppendOnly_20_4084bytePayloads(b *testing.B) {
 }
 
 func Benchmark_MemoryEventStore_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+	Run_AppendAndReadAll(b, "mem://", "namespace", "kind", 10, 20)
 }
 
-// 256 4k events / 1mb
-// 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
 func Benchmark_MemoryEventStore_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+	Run_AppendAndReadAll(b, "mem://", "namespace", "kind", 4084, 20)
 }
-
-/*
-func Benchmark_MemoryEventStore_Async_AppendOnly_10bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_Async_AppendOnly(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Async_AppendOnly_4084bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_Async_AppendOnly(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Async_AppendAndReadAll_10bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_Async_AppendAndReadAll(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Async_AppendAndReadAll_4084bytePayload(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_Async_AppendAndReadAll(b, eventStore, kindUri, entry)
-}
-
-func Benchmark_MemoryEventStore_Async_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(10)
-	b.StartTimer()
-
-	Run_Async_AppendAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
-}
-
-func Benchmark_MemoryEventStore_Async_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
-	b.StopTimer()
-	eventStore, _ := goes.Connect("mem://")
-	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	entry := Get_EventStoreEntry(4084)
-	b.StartTimer()
-
-	Run_Async_AppendAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
-}
-*/
