@@ -7,7 +7,7 @@ import (
 	. "github.com/vizidrix/eventstore/test_utils"
 	"hash/crc32"
 	"log"
-	"math/rand"
+	//"math/rand"
 	"testing"
 	"time"
 )
@@ -92,7 +92,7 @@ func Test_Should_return_single_matching_event_for_existing_id(t *testing.T) {
 	actual := <-events
 
 	// Assert
-	AreEqual(t, int32(10), actual.Length(), "Length should have been int32 10")
+	AreEqual(t, uint16(10), actual.Length(), "Length should have been int32 10")
 	AreEqual(t, uint16(1), actual.EventType(), "EvenType should have been set")
 	AreEqual(t, uint32(1), actual.CRC(), "CRC should have been calculated")
 	AreAllEqual(t, data, actual.Data(), "Data should have been set")
@@ -126,7 +126,7 @@ func Test_Should_return_middle_events_for_version_range(t *testing.T) {
 			t.Fail()
 			return
 		}
-	case <-time.After(1000 * time.Millisecond):
+	case <-time.After(1 * time.Millisecond):
 		{
 			log.Printf("Shouldn't have timed out")
 			t.Fail()
@@ -135,14 +135,14 @@ func Test_Should_return_middle_events_for_version_range(t *testing.T) {
 	}
 
 	// Assert
-	for index := 0; index < 2; index++ {
+	for index := 2; index < 4; index++ {
 		//log.Printf("Index: %d", index)
 		select {
 		case event := <-events:
 			{
 				//log.Printf("Event received: % x", event)
 
-				AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
+				AreEqual(t, uint16(10), event.Length(), "Length should have been int32 10")
 				AreEqual(t, uint16(index), event.EventType(), "EvenType should have been set")
 				AreEqual(t, uint32(index), event.CRC(), "CRC should have been calculated")
 				AreAllEqual(t, data, event.Data(), "Data should have been set")
@@ -200,7 +200,7 @@ func Test_Should_return_two_matching_events_for_existing_ids(t *testing.T) {
 			{
 				//log.Printf("Event received: % x", event)
 
-				AreEqual(t, int32(10), event.Length(), "Length should have been int32 10")
+				AreEqual(t, uint16(10), event.Length(), "Length should have been int32 10")
 				AreEqual(t, uint16(index), event.EventType(), "EvenType should have been set")
 				AreEqual(t, uint32(index), event.CRC(), "CRC should have been calculated")
 				AreAllEqual(t, data, event.Data(), "Data should have been set")
@@ -226,9 +226,103 @@ func Test_Should_produce_correct_CRC_for_event_entry(t *testing.T) {
 	entry := goes.NewEventStoreEntryFrom(5, data)
 
 	// Assert
-	AreNotEqual(t, int32(0), entry.CRC(), "CRC should have been calculated")
+	AreNotEqual(t, int16(0), entry.CRC(), "CRC should have been calculated")
 	crc := crc32.Checksum(entry.Data(), crc32.MakeTable(crc32.Castagnoli))
 	AreEqual(t, crc, entry.CRC(), "CRC should be correct")
+}
+
+func Test_Should_not_panic_when_range_is_too_long(t *testing.T) {
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	data := make([]byte, goes.MAX_EVENT_SIZE)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE, 1, 1, data)
+	events := make(chan *goes.EventStoreEntry, 1)
+	uri := kindUri.ToAggregateRootUri(1)
+	complete, _ := eventStore.Append(uri, entry1)
+	<-complete
+	readComplete, _ := eventStore.LoadIndexRange(uri, events, 0, 4)
+	<-readComplete
+}
+
+func Test_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			log.Printf("Should have raised a panic")
+			t.Fail()
+		}
+	}()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	data := make([]byte, goes.MAX_EVENT_SIZE+1)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE+1, 1, 1, data)
+	uri := kindUri.ToAggregateRootUri(1)
+	complete, _ := eventStore.Append(uri, entry1)
+	<-complete
+}
+
+func Test_Should_panic_when_reported_event_length_greater_than_actual_in_unchecked_ctor(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			log.Printf("Should have raised a panic")
+			t.Fail()
+		}
+	}()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	data := make([]byte, 3082) // <- set to less than length
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1 := goes.NewEventStoreEntry(3083, 1, 1, data) // <- invalid length!
+	uri := kindUri.ToAggregateRootUri(1)
+	complete, _ := eventStore.Append(uri, entry1)
+	<-complete
+}
+
+func Test_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testing.T) {
+	count := 2
+
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	data := make([]byte, 10)
+	for index, _ := range data {
+		data[index] = byte(index)
+	}
+	entry1 := goes.NewEventStoreEntry(10, 1, 1, data)
+
+	roundComplete := make(chan struct{})
+
+	for i := 0; i < count; i++ {
+		index := i
+		go func() {
+			uri := kindUri.ToAggregateRootUri(int64(index))
+			appendComplete, _ := eventStore.Append(uri, entry1)
+			<-appendComplete
+			events := make(chan *goes.EventStoreEntry)
+			readComplete, _ := eventStore.LoadAll(uri, events)
+			<-events
+			<-readComplete
+			roundComplete <- struct{}{}
+		}()
+	}
+	for i := 0; i < count; i++ {
+		select {
+		case <-roundComplete:
+			{
+			}
+		case <-time.After(10 * time.Millisecond):
+			{
+				log.Printf("Shouldn't have timed out")
+				t.Fail()
+			}
+		}
+	}
 }
 
 func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_10bytePayload(b *testing.B) {
@@ -240,7 +334,7 @@ func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_10bytePayload(b *tes
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		entry := goes.NewEventStoreEntry(10, 1, 1, data)
+		entry := goes.NewEventStoreEntryFrom(1, data)
 		temp := entry.ToBinary()
 		goes.FromBinary(temp)
 	}
@@ -255,7 +349,7 @@ func Benchmark_Create_Serialize_DeSerialize_EventStoreEntry_4084bytePayload(b *t
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		entry := goes.NewEventStoreEntry(4084, 1, 1, data)
+		entry := goes.NewEventStoreEntryFrom(1, data)
 		temp := entry.ToBinary()
 		goes.FromBinary(temp)
 	}
@@ -269,48 +363,126 @@ func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
 	}
 }
 
-func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_10bytePayload(b *testing.B) {
+func Benchmark_MemoryEventStore_Sync_AppendOnly_10bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	data := make([]byte, 10)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
-	entry1 := goes.NewEventStoreEntry(10, 1, 1, data)
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	ids := make([]int64, b.N)
-	for i := 0; i < b.N; i++ {
-		ids[i] = rnd.Int63()
-	}
+	entry := Get_EventStoreEntry(10)
 	b.StartTimer()
 
-	for i := 0; i < b.N; i++ {
-		uri := kindUri.ToAggregateRootUri(ids[i])
-		complete, _ := eventStore.Append(uri, entry1)
-		<-complete
-	}
+	Run_Sync_AppendOnly(b, eventStore, kindUri, entry)
 }
 
-func Benchmark_MemoryEventStore_Sync_RandomId_AppendOnly_4084bytePayload(b *testing.B) {
+func Benchmark_MemoryEventStore_Sync_AppendOnly_4084bytePayload(b *testing.B) {
 	b.StopTimer()
 	eventStore, _ := goes.Connect("mem://")
 	kindUri := goes.NewAggregateKindUri("namespace", "kind")
-	data := make([]byte, 4084)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
-	entry1 := goes.NewEventStoreEntry(4084, 1, 1, data)
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	ids := make([]int64, b.N)
-	for i := 0; i < b.N; i++ {
-		ids[i] = rnd.Int63()
-	}
+	entry := Get_EventStoreEntry(4084)
 	b.StartTimer()
 
-	for i := 0; i < b.N; i++ {
-		uri := kindUri.ToAggregateRootUri(ids[i])
-		complete, _ := eventStore.Append(uri, entry1)
-		<-complete
-	}
+	Run_Sync_AppendOnly(b, eventStore, kindUri, entry)
+}
+
+func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_10bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Sync_AppendAndReadAll(b, eventStore, kindUri, entry)
+}
+
+// 256 4k events / 1mb
+// 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
+func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_4084bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Sync_AppendAndReadAll(b, eventStore, kindUri, entry)
+}
+
+func Benchmark_MemoryEventStore_Sync_AppendOnly_20_10bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Sync_AppendOnly_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+func Benchmark_MemoryEventStore_Sync_AppendOnly_20_4084bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Sync_AppendOnly_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Sync_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+// 256 4k events / 1mb
+// 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
+func Benchmark_MemoryEventStore_Sync_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Sync_AppandAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+func Benchmark_MemoryEventStore_Async_AppendAndReadAll_10bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Async_AppendAndReadAll(b, eventStore, kindUri, entry)
+}
+
+func Benchmark_MemoryEventStore_Async_AppendAndReadAll_4084bytePayload(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Async_AppendAndReadAll(b, eventStore, kindUri, entry)
+}
+
+func Benchmark_MemoryEventStore_Async_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(10)
+	b.StartTimer()
+
+	Run_Async_AppendAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
+}
+
+func Benchmark_MemoryEventStore_Async_AppendAndReadAll_20_4084bytePayloads(b *testing.B) {
+	b.StopTimer()
+	eventStore, _ := goes.Connect("mem://")
+	kindUri := goes.NewAggregateKindUri("namespace", "kind")
+	entry := Get_EventStoreEntry(4084)
+	b.StartTimer()
+
+	Run_Async_AppendAndReadAll_Multiples(b, eventStore, kindUri, entry, 20)
 }

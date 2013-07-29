@@ -7,7 +7,7 @@ import (
 type FileSystemEventStore struct {
 }
 
-func NewFileSystemEventStore() *FileSystemEventStore {
+func NewFileSystemEventStore() EventStorer {
 	return &FileSystemEventStore{}
 }
 

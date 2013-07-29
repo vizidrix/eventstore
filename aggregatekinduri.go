@@ -2,6 +2,7 @@ package eventstore
 
 import (
 	"fmt"
+	//"log"
 )
 
 type AggregateKindUri struct {
