@@ -101,7 +101,6 @@ func Run_ReadOnlySync(b *testing.B, connString string, namespace string, kind st
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		//ix := i
 		events := make(chan *goes.EventStoreEntry, eventCount)
 		eventStore.LoadAll(uris[i], events)
 	}

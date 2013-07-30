@@ -22,21 +22,6 @@ type VisitorLogged struct {
 	Referrer        string
 }
 
-/*
-func (event *VisitorLogged) ToBinary() ([]byte, error) {
-	buffer := make([]byte, 4+4+4+4+len(event.Referrer))
-	index := 0
-	buffer[index] = binary.Write(buffer, binary.BigEndian, event.UnixNSTimeStamp)
-
-	index++
-	for char := range event.Value {
-		buffer[index] = byte(char)
-		index++
-	}
-	return buffer, nil
-}
-*/
-
 func Test_Should_produce_correct_CRC_for_event_entry(t *testing.T) {
 	// Arrange
 	data := make([]byte, 10)
