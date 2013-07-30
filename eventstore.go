@@ -36,27 +36,48 @@ type BinSerializable interface {
 	FromBinary([]byte) (interface{}, error)
 }
 
-type ReadEventStorer interface {
+type SyncReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+	LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
+	LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
 }
 
-type WriteEventStorer interface {
-	Append(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+type AsyncReadEventStorer interface {
+	// Returns an array of all EventStoreEntry's for the aggregate uri
+	LoadAllAsync(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
+	LoadIndexRangeAsync(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
+}
+
+type SyncWriteEventStorer interface {
+	Append(uri *AggregateUri, entries ...*EventStoreEntry) error
+}
+
+type AsyncWriteEventStorer interface {
+	AppendAsync(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
+}
+
+type SyncEventStorer interface {
+	SyncReadEventStorer
+	SyncWriteEventStorer
+}
+
+type AsyncEventStorer interface {
+	AsyncReadEventStorer
+	AsyncWriteEventStorer
 }
 
 type EventStorer interface {
-	ReadEventStorer
-	WriteEventStorer
+	SyncEventStorer
+	AsyncEventStorer
 }
 
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "ffs://") {
 		return NewFragmentFileSystemEventStore(), nil
-	} else if strings.HasPrefix(connString, "fs://") {
-		return NewFileSystemEventStore(), nil
+		//} else if strings.HasPrefix(connString, "fs://") {
+		//	return NewFileSystemEventStore(), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryEventStore(), nil
 	} else {

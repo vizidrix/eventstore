@@ -1,0 +1,49 @@
+Benchmark_Sync_MemoryEventStore_AppendOnly_10bytePayload	 			2000000	       764 ns/op	     200 B/op	       2 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendOnly_4084bytePayload	 			2000000	       733 ns/op	     200 B/op	       2 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_10bytePayload	 				5000000	       494 ns/op	     132 B/op	       2 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_4084bytePayload	 			5000000	       438 ns/op	     132 B/op	       2 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayload	 		1000000	      1010 ns/op	     333 B/op	       4 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4084bytePayload	 	1000000	      1000 ns/op	     333 B/op	       4 allocs/op
+
+Benchmark_Sync_MemoryEventStore_AppendOnly_20_10bytePayloads	  		200000	      9308 ns/op	    4497 B/op	      40 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendOnly_20_4084bytePayloads	  		100000	     10009 ns/op	    4498 B/op	      40 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_20_10bytePayloads	  			500000	      2841 ns/op	     931 B/op	      21 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_20_4084bytePayloads	  		500000	      2836 ns/op	     931 B/op	      21 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_20_10bytePayloads	  	100000	     12725 ns/op	    5434 B/op	      61 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_20_4084bytePayloads	100000	     12538 ns/op	    5435 B/op	      61 allocs/op
+
+Benchmark_Sync_MemoryEventStore_AppendOnly_100_10bytePayloads	   		10000	    122201 ns/op	  104645 B/op	     200 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendOnly_100_4084bytePayloads	   		10000	    121712 ns/op	  104633 B/op	     200 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_100_10bytePayloads	  			200000	     11666 ns/op	    4394 B/op	     102 allocs/op
+Benchmark_Sync_MemoryEventStore_ReadOnly_100_4084bytePayloads	  		200000	     11776 ns/op	    4394 B/op	     102 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_100_10bytePayloads	   	10000	    136987 ns/op	  109090 B/op	     302 allocs/op
+Benchmark_Sync_MemoryEventStore_AppendAndReadAll_100_4084bytePayloads	10000	    137428 ns/op	  109099 B/op	     302 allocs/op
+
+
+
+Benchmark_Async_MemoryEventStore_AppendOnly_10bytePayload	 			1000000	      1302 ns/op	     398 B/op	       4 allocs/op
+Benchmark_Async_MemoryEventStore_AppendOnly_4084bytePayload	 			1000000	      1350 ns/op	     397 B/op	       4 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_10bytePayload	 				2000000	       963 ns/op	     329 B/op	       4 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_4084bytePayload	 			2000000	       961 ns/op	     329 B/op	       4 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_10bytePayload	 		1000000	      2250 ns/op	     727 B/op	       8 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_4084bytePayload	 	1000000	      2248 ns/op	     727 B/op	       8 allocs/op
+
+Benchmark_Async_MemoryEventStore_AppendOnly_20_10bytePayloads	  		100000	     19057 ns/op	    8448 B/op	      81 allocs/op
+Benchmark_Async_MemoryEventStore_AppendOnly_20_4084bytePayloads	  		100000	     18931 ns/op	    8447 B/op	      81 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_20_10bytePayloads	  			500000	      3216 ns/op	    1128 B/op	      23 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_20_4084bytePayloads	  		500000	      3276 ns/op	    1127 B/op	      23 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_20_10bytePayloads	   	50000	     23871 ns/op	    9584 B/op	     104 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_20_4084bytePayloads	50000	     23625 ns/op	    9584 B/op	     104 allocs/op
+
+Benchmark_Async_MemoryEventStore_AppendOnly_100_10bytePayloads	    	5000	    222538 ns/op	  124446 B/op	     404 allocs/op
+Benchmark_Async_MemoryEventStore_AppendOnly_100_4084bytePayloads	    5000	    222669 ns/op	  124445 B/op	     404 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_100_10bytePayloads	  		200000	     11827 ns/op	    4591 B/op	     104 allocs/op
+Benchmark_Async_MemoryEventStore_ReadOnly_100_4084bytePayloads	  		200000	     11813 ns/op	    4591 B/op	     104 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_100_10bytePayloads	5000	    247262 ns/op	  129075 B/op	     509 allocs/op
+Benchmark_Async_MemoryEventStore_AppendAndReadAll_100_4084bytePayloads	5000	    244267 ns/op	  129075 B/op	     509 allocs/op
+
+
+
+
+
+ok  	github.com/vizidrix/eventstore	210.639s

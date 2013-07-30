@@ -7,9 +7,9 @@ import (
 type FileSystemEventStore struct {
 }
 
-func NewFileSystemEventStore() EventStorer {
-	return &FileSystemEventStore{}
-}
+//func NewFileSystemEventStore() EventStorer {
+//	return &FileSystemEventStore{}
+//}
 
 func (es *FileSystemEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore LoadAll")

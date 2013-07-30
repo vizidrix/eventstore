@@ -11,7 +11,11 @@ func NewFragmentFileSystemEventStore() EventStorer {
 	return &FragmentFileSystemEventStore{}
 }
 
-func (es *FragmentFileSystemEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *FragmentFileSystemEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error {
+	return nil
+}
+
+func (es *FragmentFileSystemEventStore) LoadAllAsync(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore LoadAll")
 	completed := make(chan struct{})
 	errored := make(chan error)
@@ -19,14 +23,22 @@ func (es *FragmentFileSystemEventStore) LoadAll(uri *AggregateUri, entries chan<
 	return completed, errored
 }
 
-func (es *FragmentFileSystemEventStore) LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *FragmentFileSystemEventStore) LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error {
+	return nil
+}
+
+func (es *FragmentFileSystemEventStore) LoadIndexRangeAsync(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
 	completed := make(chan struct{}, 1)
 	errored := make(chan error)
 
 	return completed, errored
 }
 
-func (es *FragmentFileSystemEventStore) Append(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
+func (es *FragmentFileSystemEventStore) Append(uri *AggregateUri, entries ...*EventStoreEntry) error {
+	return nil
+}
+
+func (es *FragmentFileSystemEventStore) AppendAsync(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
 	log.Printf("FileSystemEventStore Append")
 	completed := make(chan struct{})
 	errored := make(chan error)
