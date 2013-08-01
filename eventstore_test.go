@@ -148,11 +148,12 @@ func EventStoreSync_Should_return_empty_slice_for_new_id(t *testing.T, connStrin
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
-	uri := kind.ToAggregateUri(1)
+	partition := eventStore.RegisterKind(kind)
+	//uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 
 	// Act
-	eventStore.LoadAll(uri, events)
+	partition.LoadAll(1, events)
 
 	// Assert
 	select {
@@ -172,17 +173,18 @@ func EventStoreSync_Should_return_single_matching_event_for_existing_id(t *testi
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
-	uri := kind.ToAggregateUri(1)
+	partition := eventStore.RegisterKind(kind)
+	//uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 	data := make([]byte, 10)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry := goes.NewEventStoreEntry(10, 1, 1, data)
-	eventStore.Append(uri, entry)
+	partition.Append(1, entry)
 
 	// Act
-	eventStore.LoadAll(uri, events)
+	partition.LoadAll(1, events)
 
 	actual := <-events
 
@@ -195,9 +197,10 @@ func EventStoreSync_Should_return_single_matching_event_for_existing_id(t *testi
 
 func EventStoreSync_Should_return_middle_events_for_version_range(t *testing.T, connString string) {
 	// Arrange
-	eventstore, _ := goes.Connect(connString)
+	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	uri := kind.ToAggregateUri(1)
+	partition := eventStore.RegisterKind(kind)
+	//uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 5)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -205,11 +208,11 @@ func EventStoreSync_Should_return_middle_events_for_version_range(t *testing.T, 
 	}
 	for index := 0; index < 5; index++ {
 		entry := goes.NewEventStoreEntry(10, uint16(index), uint32(index), data)
-		eventstore.Append(uri, entry)
+		partition.Append(1, entry)
 	}
 
 	// Act
-	eventstore.LoadIndexRange(uri, events, 2, 3)
+	partition.LoadIndexRange(1, events, 2, 3)
 
 	// Assert
 	for index := 2; index < 4; index++ {
@@ -238,7 +241,8 @@ func EventStoreSync_Should_return_two_matching_events_for_existing_ids(t *testin
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	uri := kind.ToAggregateUri(1)
+	partition := eventStore.RegisterKind(kind)
+	//uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 2)
 	data := make([]byte, 10)
 	for index, _ := range data {
@@ -247,11 +251,11 @@ func EventStoreSync_Should_return_two_matching_events_for_existing_ids(t *testin
 	entry1 := goes.NewEventStoreEntry(10, 0, 0, data)
 	entry2 := goes.NewEventStoreEntry(10, 1, 1, data)
 
-	eventStore.Append(uri, entry1)
-	eventStore.Append(uri, entry2)
+	partition.Append(1, entry1)
+	partition.Append(1, entry2)
 
 	// Act
-	eventStore.LoadAll(uri, events)
+	partition.LoadAll(1, events)
 
 	// Assert
 	for index := 0; index < 2; index++ {
@@ -276,15 +280,16 @@ func EventStoreSync_Should_return_two_matching_events_for_existing_ids(t *testin
 func EventStoreSync_Should_not_panic_when_range_is_too_long(t *testing.T, connString string) {
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	partition := eventStore.RegisterKind(kind)
 	data := make([]byte, goes.MAX_EVENT_SIZE)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE, 1, 1, data)
 	events := make(chan *goes.EventStoreEntry, 1)
-	uri := kind.ToAggregateUri(1)
-	eventStore.Append(uri, entry1)
-	eventStore.LoadIndexRange(uri, events, 0, 4)
+	//uri := kind.ToAggregateUri(1)
+	partition.Append(1, entry1)
+	partition.LoadIndexRange(1, events, 0, 4)
 }
 
 func EventStoreSync_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t *testing.T, connString string) {
@@ -296,13 +301,14 @@ func EventStoreSync_Should_panic_when_event_length_greater_than_max_in_unchecked
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	partition := eventStore.RegisterKind(kind)
 	data := make([]byte, goes.MAX_EVENT_SIZE+1)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE+1, 1, 1, data)
-	uri := kind.ToAggregateUri(1)
-	eventStore.Append(uri, entry1)
+	//uri := kind.ToAggregateUri(1)
+	partition.Append(1, entry1)
 }
 
 func EventStoreSync_Should_panic_when_reported_event_length_greater_than_actual_in_unchecked_ctor(t *testing.T, connString string) {
@@ -314,13 +320,14 @@ func EventStoreSync_Should_panic_when_reported_event_length_greater_than_actual_
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	partition := eventStore.RegisterKind(kind)
 	data := make([]byte, 3082) // <- set to less than length
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
 	entry1 := goes.NewEventStoreEntry(3083, 1, 1, data) // <- invalid length!
-	uri := kind.ToAggregateUri(1)
-	eventStore.Append(uri, entry1)
+	//uri := kind.ToAggregateUri(1)
+	partition.Append(1, entry1)
 }
 
 func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testing.T, connString string) {
@@ -328,6 +335,7 @@ func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be
 
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	partition := eventStore.RegisterKind(kind)
 	entry1 := Get_EventStoreEntry(10)
 
 	roundComplete := make(chan struct{})
@@ -335,10 +343,10 @@ func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be
 	for i := 0; i < count; i++ {
 		index := i
 		go func() {
-			uri := kind.ToAggregateUri(int64(index))
-			eventStore.Append(uri, entry1)
+			//uri := kind.ToAggregateUri(int64(index))
+			partition.Append(int64(index), entry1)
 			events := make(chan *goes.EventStoreEntry, 2)
-			eventStore.LoadAll(uri, events)
+			partition.LoadAll(int64(index), events)
 			roundComplete <- struct{}{}
 		}()
 	}
@@ -356,10 +364,12 @@ func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be
 	}
 }
 
+/*
 func EventStoreAsync_Should_return_empty_slice_for_new_id(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
+	eventStore.RegisterKind(kind)
 	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 
@@ -403,6 +413,7 @@ func EventStoreAsync_Should_return_single_matching_event_for_existing_id(t *test
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
+	eventStore.RegisterKind(kind)
 	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 1)
 	data := make([]byte, 10)
@@ -444,8 +455,9 @@ func EventStoreAsync_Should_return_single_matching_event_for_existing_id(t *test
 
 func EventStoreAsync_Should_return_middle_events_for_version_range(t *testing.T, connString string) {
 	// Arrange
-	eventstore, _ := goes.Connect(connString)
+	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 5)
 	data := make([]byte, 10)
@@ -454,12 +466,12 @@ func EventStoreAsync_Should_return_middle_events_for_version_range(t *testing.T,
 	}
 	for index := 0; index < 5; index++ {
 		entry := goes.NewEventStoreEntry(10, uint16(index), uint32(index), data)
-		appendCompleted, _ := eventstore.AppendAsync(uri, entry)
+		appendCompleted, _ := eventStore.AppendAsync(uri, entry)
 		<-appendCompleted
 	}
 
 	// Act
-	completed, errored := eventstore.LoadIndexRangeAsync(uri, events, 2, 3)
+	completed, errored := eventStore.LoadIndexRangeAsync(uri, events, 2, 3)
 
 	select {
 	case <-completed:
@@ -506,6 +518,7 @@ func EventStoreAsync_Should_return_two_matching_events_for_existing_ids(t *testi
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	uri := kind.ToAggregateUri(1)
 	events := make(chan *goes.EventStoreEntry, 2)
 	data := make([]byte, 10)
@@ -564,6 +577,7 @@ func EventStoreAsync_Should_return_two_matching_events_for_existing_ids(t *testi
 func EventStoreAsync_Should_not_panic_when_range_is_too_long(t *testing.T, connString string) {
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	data := make([]byte, goes.MAX_EVENT_SIZE)
 	for index, _ := range data {
 		data[index] = byte(index)
@@ -586,6 +600,7 @@ func EventStoreAsync_Should_panic_when_event_length_greater_than_max_in_unchecke
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	data := make([]byte, goes.MAX_EVENT_SIZE+1)
 	for index, _ := range data {
 		data[index] = byte(index)
@@ -605,6 +620,7 @@ func EventStoreAsync_Should_panic_when_reported_event_length_greater_than_actual
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	data := make([]byte, 3082) // <- set to less than length
 	for index, _ := range data {
 		data[index] = byte(index)
@@ -620,6 +636,7 @@ func EventStoreAsync_Should_fail_if_write_index_is_not_unique_when_expected_to_b
 
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
+	eventStore.RegisterKind(kind)
 	entry1 := Get_EventStoreEntry(10)
 
 	roundComplete := make(chan struct{})
@@ -650,3 +667,4 @@ func EventStoreAsync_Should_fail_if_write_index_is_not_unique_when_expected_to_b
 		}
 	}
 }
+*/

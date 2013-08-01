@@ -18,68 +18,82 @@ import (
 
 func ignore() { log.Println(fmt.Sprintf("", 10)) }
 
-const MaxUint = ^uint(0)
-const MinUint = 0
-const MaxInt = int(^uint(0) >> 1)
-const MinInt = -(MaxInt - 1)
-const MaxUint32 = ^uint32(0)
-const MinUint32 = 0
-const MaxInt32 = int32(^uint32(0) >> 1)
-const MinInt32 = -(MaxInt - 1)
-const MaxUint64 = ^uint64(0)
-const MinUint64 = 0
-const MaxInt64 = int64(^uint64(0) >> 1)
-const MinInt64 = -(MaxInt - 1)
+const (
+	MaxUint   = ^uint(0)
+	MinUint   = 0
+	MaxInt    = int(^uint(0) >> 1)
+	MinInt    = -(MaxInt - 1)
+	MaxUint32 = ^uint32(0)
+	MinUint32 = 0
+	MaxInt32  = int32(^uint32(0) >> 1)
+	MinInt32  = -(MaxInt - 1)
+	MaxUint64 = ^uint64(0)
+	MinUint64 = 0
+	MaxInt64  = int64(^uint64(0) >> 1)
+	MinInt64  = -(MaxInt - 1)
+)
 
 type BinSerializable interface {
 	ToBinary() ([]byte, error)
 	FromBinary([]byte) (interface{}, error)
 }
 
-type SyncReadEventStorer interface {
+type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error
+	LoadAll(id int64, entries chan<- *EventStoreEntry) error
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
+	LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
 }
 
+/*
 type AsyncReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
 	LoadAllAsync(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
 	LoadIndexRangeAsync(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
 }
+*/
 
-type SyncWriteEventStorer interface {
-	Append(uri *AggregateUri, entries ...*EventStoreEntry) error
+type WriteEventStorer interface {
+	Append(id int64, entry *EventStoreEntry) error
 }
 
+/*
 type AsyncWriteEventStorer interface {
 	AppendAsync(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error)
 }
+*/
 
+/*
 type SyncEventStorer interface {
 	SyncReadEventStorer
 	SyncWriteEventStorer
 }
-
+*/
+/*
 type AsyncEventStorer interface {
 	AsyncReadEventStorer
 	AsyncWriteEventStorer
 }
+*/
 
 type EventStorer interface {
-	SyncEventStorer
-	AsyncEventStorer
+	//SyncEventStorer
+	RegisterKind(kind *AggregateKind) EventPartitioner
+}
+
+type EventPartitioner interface {
+	ReadEventStorer
+	WriteEventStorer
 }
 
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "ffs://") {
-		return NewFragmentFileSystemEventStore(), nil
+		return NewFragmentFileSystemEventStore(connString), nil
 		//} else if strings.HasPrefix(connString, "fs://") {
 		//	return NewFileSystemEventStore(), nil
 	} else if strings.HasPrefix(connString, "mem://") {
-		return NewMemoryEventStore(), nil
+		return NewMemoryEventStore(connString), nil
 	} else {
 		return nil, errors.New("Unable to find delimiter in connection string")
 	}
@@ -100,6 +114,7 @@ func Connect(connString string) (EventStorer, error) {
 	//return nil, errors.New("Invalid EventStore connection string")
 }
 
+/* -- Replaced by AggregateKind and the -> AggregateUri ability */
 type Domain struct {
 	path      string
 	namespace string

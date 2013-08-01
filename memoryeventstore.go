@@ -9,121 +9,78 @@ import (
 func ignore_memoryeventstore() { log.Printf("") }
 
 type MemoryEventStore struct {
-	datastore map[uint32]map[int64][]byte
+	eventStore map[uint32]*MemoryEventStorePartition
 }
 
-func NewMemoryEventStore() EventStorer {
+type MemoryEventStorePartition struct {
+	aggregateStore map[int64][]byte
+}
+
+func NewMemoryEventStore(connString string) EventStorer {
 	return &MemoryEventStore{
-		datastore: make(map[uint32]map[int64][]byte),
+		eventStore: make(map[uint32]*MemoryEventStorePartition),
 	}
 }
 
-func (es *MemoryEventStore) LoadRaw(uri *AggregateUri) []byte {
-	partition, foundPartition := es.datastore[uri.Hash()]
+func (es *MemoryEventStore) RegisterKind(kind *AggregateKind) EventPartitioner {
+	partition, foundPartition := es.eventStore[kind.Hash()]
 	if !foundPartition {
-		partition = make(map[int64][]byte)
-		es.datastore[uri.Hash()] = partition
+		partition = &MemoryEventStorePartition{
+			aggregateStore: make(map[int64][]byte),
+		}
+		es.eventStore[kind.Hash()] = partition
 	}
-	aggregate, foundAggregate := partition[uri.Id()]
+	return partition
+}
+
+//func (partition *MemoryEventStorePartition) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error {
+func (partition *MemoryEventStorePartition) LoadAll(id int64, entries chan<- *EventStoreEntry) error {
+	return partition.LoadIndexRange(id, entries, 0, MaxUint64)
+}
+
+func (partition *MemoryEventStorePartition) LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error {
+	index := uint64(0)
+	data, foundAggregate := partition.aggregateStore[id]
 	if !foundAggregate {
+		return nil
+	}
+
+	totalLength := len(data)
+
+	for position := 0; position < totalLength; index++ {
+		// If the top bound is reached then abort the loop
+		if index > endIndex {
+			break
+		}
+		// Find the length of the current entry's data
+		entryLength := int(UInt12(data[position : position+3]))
+		// Only return entries inside the range
+		if index >= startIndex {
+			// Load and return the entry at this index
+			entry := FromBinary(data[position:position+HEADER_SIZE], data[position+HEADER_SIZE:position+HEADER_SIZE+entryLength])
+			entries <- entry
+		}
+		// Move the position cursor to the next event
+		position = position + HEADER_SIZE + entryLength
+	}
+	return nil
+}
+
+func (partition *MemoryEventStorePartition) Append(id int64, entry *EventStoreEntry) error {
+	aggregate, foundAggregate := partition.aggregateStore[id]
+	header, body := entry.ToBinary()
+	position := 0
+	if foundAggregate {
+		position = len(aggregate)
+	} else {
 		aggregate = make([]byte, 0)
-		partition[uri.Id()] = aggregate
 	}
-	return aggregate
-}
+	newData := make([]byte, position+HEADER_SIZE+len(body))
+	copy(newData, aggregate)
+	copy(newData[position:], header)
+	copy(newData[position+HEADER_SIZE:], body)
 
-func (es *MemoryEventStore) AppendRaw(uri *AggregateUri, entry []byte) {
-	prevData := es.LoadRaw(uri)
-	newData := make([]byte, len(prevData)+len(entry))
-	copy(newData, prevData)
-	copy(newData[len(prevData):], entry)
-	es.datastore[uri.Hash()][uri.Id()] = newData
-}
+	partition.aggregateStore[id] = newData
 
-func (es *MemoryEventStore) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error {
-	return es.LoadIndexRange(uri, entries, 0, MaxUint64)
-}
-
-func (es *MemoryEventStore) LoadAllAsync(uri *AggregateUri, entries chan<- *EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
-	return es.LoadIndexRangeAsync(uri, entries, 0, MaxUint64)
-}
-
-func (es *MemoryEventStore) LoadIndexRange(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error {
-	index := uint64(0)
-	data := es.LoadRaw(uri)
-	totalLength := len(data)
-
-	for position := 0; position < totalLength; index++ {
-		// If the top bound is reached then abort the loop
-		if index > endIndex {
-			break
-		}
-		// Find the length of the current entry's data
-		entryLength := int(UInt12(data[position : position+3]))
-		// Only return entries inside the range
-		if index >= startIndex {
-			// Load and return the entry at this index
-			entry := FromBinary(data[position : position+HEADER_SIZE+entryLength])
-			entries <- entry
-		}
-		// Move the position cursor to the next event
-		position = position + HEADER_SIZE + entryLength
-	}
 	return nil
-}
-
-func (es *MemoryEventStore) LoadIndexRangeAsync(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error) {
-	completed := make(chan struct{}, 1)
-	errored := make(chan error)
-	//go func() {
-	defer func() {
-		completed <- struct{}{}
-	}()
-	index := uint64(0)
-	data := es.LoadRaw(uri)
-	totalLength := len(data)
-
-	for position := 0; position < totalLength; index++ {
-		// If the top bound is reached then abort the loop
-		if index > endIndex {
-			break
-		}
-		// Find the length of the current entry's data
-		entryLength := int(UInt12(data[position : position+3]))
-		// Only return entries inside the range
-		if index >= startIndex {
-			// Load and return the entry at this index
-			entry := FromBinary(data[position : position+HEADER_SIZE+entryLength])
-			entries <- entry
-		}
-		// Move the position cursor to the next event
-		position = position + HEADER_SIZE + entryLength
-	}
-	//}()
-	return completed, errored
-}
-
-func (es *MemoryEventStore) Append(uri *AggregateUri, entries ...*EventStoreEntry) error {
-	for _, entry := range entries {
-		data := entry.ToBinary()
-
-		es.AppendRaw(uri, data)
-	}
-	return nil
-}
-
-func (es *MemoryEventStore) AppendAsync(uri *AggregateUri, entries ...*EventStoreEntry) (completeChan <-chan struct{}, errorChan <-chan error) {
-	completed := make(chan struct{}, 1)
-	errored := make(chan error)
-	//go func() {
-	defer func() {
-		completed <- struct{}{}
-	}()
-	for _, entry := range entries {
-		data := entry.ToBinary()
-
-		es.AppendRaw(uri, data)
-	}
-	//}()
-	return completed, errored
 }
