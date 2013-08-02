@@ -114,74 +114,96 @@ func Benchmark_KindUri_to_AggregateRootUri(b *testing.B) {
 */
 
 func Get_EventStoreEntry(size int) *goes.EventStoreEntry {
-	data := make([]byte, 10)
+	data := make([]byte, size)
 	for index, _ := range data {
 		data[index] = byte(index)
 	}
-	return goes.NewEventStoreEntry(10, 1, 1, data)
+	return goes.NewEventStoreEntry(uint16(size), 1, 1, data)
 }
 
 func Run_AppendOnlySync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
-	eventStore, _ := goes.Connect(connString)
+	//b.StopTimer()
+	//eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind(namespace, kindName)
-	partition := eventStore.RegisterKind(kind)
+	//partition := eventStore.RegisterKind(kind)
 	eventStoreEntry := Get_EventStoreEntry(eventSize)
 	i := 0
 	index := 0
 	b.ResetTimer()
 	b.StopTimer()
-
 	for i = 0; i < b.N; i++ {
+		eventStore, _ := goes.Connect(connString)
+		partition := eventStore.RegisterKind(kind)
+		id := int64(i)
+		//b.StartTimer()
 		for index = 0; index < eventCount; index++ {
-			id := int64(i)
+
 			b.StartTimer()
 			partition.Append(id, eventStoreEntry)
 			b.StopTimer()
 		}
+		//b.StopTimer()
 	}
 }
 
 func Run_ReadOnlySync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
-	eventStore, _ := goes.Connect(connString)
+	//b.StopTimer()
+	//b.StopTimer()
+	//eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind(namespace, kindName)
-	partition := eventStore.RegisterKind(kind)
+	//partition := eventStore.RegisterKind(kind)
 	eventStoreEntry := Get_EventStoreEntry(eventSize)
-	for i := 0; i < b.N; i++ {
+	/*for i := 0; i < b.N; i++ {
 		for index := 0; index < eventCount; index++ {
 			partition.Append(int64(i), eventStoreEntry)
 		}
-	}
+	}*/
 	i := 0
+	//b.StartTimer()
+	//b.StopTimer()b.StartTimer()
+	//log.Printf("Doing iteration: %d", b.N)
 	b.ResetTimer()
 	b.StopTimer()
-
 	for i = 0; i < b.N; i++ {
-		events := make(chan *goes.EventStoreEntry, eventCount)
+		eventStore, _ := goes.Connect(connString)
+		partition := eventStore.RegisterKind(kind)
+		for index := 0; index < eventCount; index++ {
+			partition.Append(int64(i), eventStoreEntry)
+		}
+		//events := make(chan *goes.EventStoreEntry, eventCount)
 		id := int64(i)
 		b.StartTimer()
-		partition.LoadAll(id, events)
+		//log.Printf("Doing iteration: %d", i)
+
+		//b.StartTimer()
+		partition.LoadAll(id)
 		b.StopTimer()
 	}
+	//log.Printf("Done iteration: %d", b.N)
 }
 
 func Run_AppendAndReadAllSync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
-	eventStore, _ := goes.Connect(connString)
+	//b.StopTimer()
+	//eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind(namespace, kindName)
-	partition := eventStore.RegisterKind(kind)
+	//partition := eventStore.RegisterKind(kind)
 	eventStoreEntry := Get_EventStoreEntry(eventSize)
 	i := 0
 	index := 0
 	b.ResetTimer()
 	b.StopTimer()
-
+	//b.StartTimer()
 	for i = 0; i < b.N; i++ {
-		events := make(chan *goes.EventStoreEntry, eventCount)
+		eventStore, _ := goes.Connect(connString)
+		partition := eventStore.RegisterKind(kind)
+
+		//events := make(chan *goes.EventStoreEntry, eventCount)
 		id := int64(i)
 		b.StartTimer()
 		for index = 0; index < eventCount; index++ {
 			partition.Append(id, eventStoreEntry)
 		}
-		partition.LoadAll(id, events)
+		partition.LoadAll(id)
 		b.StopTimer()
 	}
 }

@@ -40,9 +40,11 @@ type BinSerializable interface {
 
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
-	LoadAll(id int64, entries chan<- *EventStoreEntry) error
+	//LoadAll(id int64, entries chan<- *EventStoreEntry) error
+	LoadAll(id int64) ([]*EventStoreEntry, error)
 	// Reutrns an array of all EventStoreEntry's for the aggregate uri that were between the start and end index range
-	LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
+	//LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
+	LoadIndexRange(id int64, startIndex uint64, endIndex uint64) ([]*EventStoreEntry, error)
 }
 
 /*

@@ -1,7 +1,7 @@
 package eventstore
 
 import (
-	//"errors"
+	"errors"
 	//"fmt"
 	"log"
 )
@@ -13,7 +13,7 @@ type MemoryEventStore struct {
 }
 
 type MemoryEventStorePartition struct {
-	aggregateStore map[int64][]byte
+	aggregateStore map[int64][][]byte
 }
 
 func NewMemoryEventStore(connString string) EventStorer {
@@ -26,61 +26,93 @@ func (es *MemoryEventStore) RegisterKind(kind *AggregateKind) EventPartitioner {
 	partition, foundPartition := es.eventStore[kind.Hash()]
 	if !foundPartition {
 		partition = &MemoryEventStorePartition{
-			aggregateStore: make(map[int64][]byte),
+			aggregateStore: make(map[int64][][]byte),
 		}
 		es.eventStore[kind.Hash()] = partition
 	}
 	return partition
 }
 
-//func (partition *MemoryEventStorePartition) LoadAll(uri *AggregateUri, entries chan<- *EventStoreEntry) error {
-func (partition *MemoryEventStorePartition) LoadAll(id int64, entries chan<- *EventStoreEntry) error {
-	return partition.LoadIndexRange(id, entries, 0, MaxUint64)
+func (partition *MemoryEventStorePartition) LoadAll(id int64) ([]*EventStoreEntry, error) {
+	return partition.LoadIndexRange(id, 0, MaxUint64)
 }
 
-func (partition *MemoryEventStorePartition) LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error {
-	index := uint64(0)
-	data, foundAggregate := partition.aggregateStore[id]
-	if !foundAggregate {
-		return nil
+// Tests for start / end range checks
+func (partition *MemoryEventStorePartition) LoadIndexRange(id int64, startIndex uint64, endIndex uint64) ([]*EventStoreEntry, error) {
+	if startIndex < 0 {
+		return nil, errors.New("Invalid startIndex")
+	}
+	if endIndex <= startIndex {
+		return nil, errors.New("End index should be greater than start index")
+	}
+	entryStore, foundEntries := partition.aggregateStore[id]
+	// Return an empty slice if the id isn't found
+	if !foundEntries {
+		return make([]*EventStoreEntry, 0), nil
+	}
+	// Move end index into range
+	if endIndex > uint64(len(entryStore)) {
+		endIndex = uint64(len(entryStore)) - 1
+	}
+	// If start point is beyond length bail out
+	if startIndex > endIndex {
+		return make([]*EventStoreEntry, 0), nil
+	}
+	count := endIndex - startIndex + 1
+	resultEntries := entryStore[startIndex:]
+	result := make([]*EventStoreEntry, len(resultEntries))
+	for i := 0; i < int(count); i++ {
+		result[i] = FromBinary(resultEntries[i][0:HEADER_SIZE], resultEntries[i][HEADER_SIZE:])
 	}
 
-	totalLength := len(data)
-
-	for position := 0; position < totalLength; index++ {
-		// If the top bound is reached then abort the loop
-		if index > endIndex {
-			break
-		}
-		// Find the length of the current entry's data
-		entryLength := int(UInt12(data[position : position+3]))
-		// Only return entries inside the range
-		if index >= startIndex {
-			// Load and return the entry at this index
-			entry := FromBinary(data[position:position+HEADER_SIZE], data[position+HEADER_SIZE:position+HEADER_SIZE+entryLength])
-			entries <- entry
-		}
-		// Move the position cursor to the next event
-		position = position + HEADER_SIZE + entryLength
-	}
-	return nil
+	return result, nil
 }
+
+const (
+	ENTRYSTORE_INCREMENT = 32
+)
 
 func (partition *MemoryEventStorePartition) Append(id int64, entry *EventStoreEntry) error {
-	aggregate, foundAggregate := partition.aggregateStore[id]
-	header, body := entry.ToBinary()
-	position := 0
-	if foundAggregate {
-		position = len(aggregate)
-	} else {
-		aggregate = make([]byte, 0)
-	}
-	newData := make([]byte, position+HEADER_SIZE+len(body))
-	copy(newData, aggregate)
-	copy(newData[position:], header)
-	copy(newData[position+HEADER_SIZE:], body)
+	newEntry := make([]byte, HEADER_SIZE+entry.Header().Length())
+	copy(newEntry[0:HEADER_SIZE], entry.Header().data)
+	copy(newEntry[HEADER_SIZE:], entry.Data())
 
-	partition.aggregateStore[id] = newData
+	entryStore, foundEntries := partition.aggregateStore[id]
+	if !foundEntries {
+		// Allocate slice of slices with extra
+		entryStore = make([][]byte, 1, ENTRYSTORE_INCREMENT)
+
+		entryStore[0] = newEntry
+		//partition.aggregateStore[id] = entryStore
+	} else {
+		position := len(entryStore)
+		entryStore = entryStore[0 : position+1]
+		entryStore[position] = newEntry
+
+		// If there is no more room to append we have to grow
+		if len(entryStore) >= cap(entryStore) {
+			//log.Printf("Growing entry store: { %d -> %d }", len(entryStore), cap(entryStore)*2)
+			temp := make([][]byte, len(entryStore), cap(entryStore)+ENTRYSTORE_INCREMENT)
+			copy(temp[0:len(entryStore)], entryStore)
+			entryStore = temp
+			//log.Printf("Extended entry store: %d / %d", len(entryStore), cap(entryStore))
+		}
+	}
+
+	// Allocate and populate a new slice to hold the entry blob
+	/*newEntry := make([]byte, HEADER_SIZE+entry.Header().Length())
+	copy(newEntry[0:HEADER_SIZE], entry.Header().data)
+	copy(newEntry[HEADER_SIZE:], entry.Data())*/
+
+	//log.Printf("Created entry: % v", newEntry)
+	// Extend by one for the new item
+
+	//position := len(entryStore)
+	//entryStore = entryStore[0 : position+1]
+	//entryStore[position] = newEntry
+
+	//log.Printf("From entry store: % v", entryStore[position])
+	partition.aggregateStore[id] = entryStore
 
 	return nil
 }

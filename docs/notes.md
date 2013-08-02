@@ -1,5 +1,18 @@
 go test github.com/vizidrix/eventstore -bench .
 
+
+http://grokbase.com/t/gg/golang-nuts/13499phn58/go-nuts-help-using-pprof
+------------------------------------------------------------------------
+go test -c
+./package.test -test.run=XXX -test.bench=. -test.cpuprofile=cpu.out
+
+go tool pprof package.test cpu.out
+
+(pprof) top10
+------------------------------------------------------------------------
+
+
+
  ASCII Subset
 
 a-z (lower)		26
