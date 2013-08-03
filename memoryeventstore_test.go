@@ -1,11 +1,12 @@
 package eventstore_test
 
 import (
+	//goes "github.com/vizidrix/eventstore"
 	"log"
 	"testing"
 )
 
-func ignore_memoryeventstore_test() { log.Println("") }
+func ignore_chaneventstore_test() { log.Println("") }
 
 // 256 4k events / 1mb
 // 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
@@ -50,76 +51,62 @@ func Test_Memory_Sync_Should_fail_if_write_index_is_not_unique_when_expected_to_
 
 /*******************/
 
-func Benchmark_Sync_MemoryEventStore_AppendOnly_10bytePayload(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 10, 1)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendOnly_4087bytePayload(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 4087, 1)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_10bytePayload(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 10, 1)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_4087bytePayload(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 4087, 1)
-}
-
 func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayload(b *testing.B) {
 	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 1)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayloads_x10(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 10)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayloads_x100(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 100)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayloads_x1000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 1000)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_10bytePayloads_x10000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 10000)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_1024bytePayload(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 1024, 1)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_1024bytePayloads_x10(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 1024, 10)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_1024bytePayloads_x100(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 1024, 100)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_1024bytePayloads_x1000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 1024, 1000)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_1024bytePayloads_x10000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 1024, 10000)
 }
 
 func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4087bytePayload(b *testing.B) {
 	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 1)
 }
 
-func Benchmark_Sync_MemoryEventStore_AppendOnly_20_10bytePayloads(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 10, 20)
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4087bytePayloads_x10(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 10)
 }
 
-func Benchmark_Sync_MemoryEventStore_AppendOnly_20_4087bytePayloads(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 4087, 20)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_20_10bytePayloads(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 10, 20)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_20_4087bytePayloads(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 4087, 20)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_20_10bytePayloads(b *testing.B) {
-	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 20)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_20_4087bytePayloads(b *testing.B) {
-	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 20)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendOnly_100_10bytePayloads(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 10, 100)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendOnly_100_4087bytePayloads(b *testing.B) {
-	Run_AppendOnlySync(b, MemoryUri, "namespace", "kind", 4087, 100)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_100_10bytePayloads(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 10, 100)
-}
-
-func Benchmark_Sync_MemoryEventStore_ReadOnly_100_4087bytePayloads(b *testing.B) {
-	Run_ReadOnlySync(b, MemoryUri, "namespace", "kind", 4087, 100)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_100_10bytePayloads(b *testing.B) {
-	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 10, 100)
-}
-
-func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_100_4087bytePayloads(b *testing.B) {
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4087bytePayloads_x100(b *testing.B) {
 	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 100)
 }
 
-/*******************/
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4087bytePayloads_x1000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 1000)
+}
+
+func Benchmark_Sync_MemoryEventStore_AppendAndReadAll_4087bytePayloads_x10000(b *testing.B) {
+	Run_AppendAndReadAllSync(b, MemoryUri, "namespace", "kind", 4087, 10000)
+}

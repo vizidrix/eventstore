@@ -27,7 +27,7 @@ type MemoryEventStoreAggregatePartition struct {
 	events []*EventStoreEntry
 }
 
-func NewMemoryEventStore(connString string) EventStorer {
+func NewChanEventStore(connString string) EventStorer {
 	return &MemoryEventStore{
 		connString: connString,
 		kindStore:  make(map[uint32]*MemoryEventStoreKindPartition),
@@ -51,18 +51,56 @@ func (kindPartition *MemoryEventStoreKindPartition) Aggregate(id int64) Aggregat
 	if !foundPartition {
 		partition = &MemoryEventStoreAggregatePartition{
 			id:     id,
-			events: make([]*EventStoreEntry, 0, 32),
+			events: make([]*EventStoreEntry, 0, ENTRY_PARTITION_BUFFER),
 		}
 		kindPartition.aggregateStore[id] = partition
 	}
 	return partition
 }
 
+/*
+func (partition *ChanEventStoreAggregatePartition) BindChannels() {
+	go func() {
+		log.Printf("Waiting for data on: %d", partition.id)
+		for {
+			entry := <-partition.appendChan
+			partition.compactionChan <- struct{}{}
+			log.Printf("Blocking")
+
+			buffer := make([]*EventStoreEntry, 1, 32)
+			buffer[0] = entry
+
+			// push struct onto compactionChan once finished
+
+			//log.Printf("Chan: % v", len(partition.appendChan))
+			select {
+			case entry := <-partition.appendChan:
+				{
+					if len(buffer) == 32 {
+
+					}
+					log.Printf("Got data: % v", entry.data)
+					partition.locations = append(partition.locations, int(HEADER_SIZE+entry.Length()))
+					partition.events = append(partition.events, entry.data...)
+				}
+			case <-time.After(10 * time.Millisecond):
+				{
+
+				}
+			}
+
+			<-partition.compactionChan
+		}
+	}()
+}
+*/
 func (aggregatePartition *MemoryEventStoreAggregatePartition) LoadAll() ([]*EventStoreEntry, error) {
 	return aggregatePartition.LoadIndexRange(0, MaxInt)
 }
 
 func (partition *MemoryEventStoreAggregatePartition) LoadIndexRange(startIndex int, endIndex int) ([]*EventStoreEntry, error) {
+	//partition.compactionChan <- struct{}{}
+
 	if startIndex < 0 {
 		return nil, errors.New("Invalid startIndex")
 	}
@@ -74,18 +112,44 @@ func (partition *MemoryEventStoreAggregatePartition) LoadIndexRange(startIndex i
 		endIndex = len(partition.events) - 1
 	}
 	// If start point is beyond length bail out
-	if startIndex > endIndex || startIndex > len(partition.events) {
+	if startIndex > endIndex {
 		return make([]*EventStoreEntry, 0), nil
 	}
 
-	results := make([]*EventStoreEntry, endIndex-startIndex+1)
+	//log.Printf("Eventz: [ %d, %d ]", len(partition.events), cap(partition.events))
+	//index := 0
+	//position := 0
+	count := endIndex - startIndex + 1
+
+	results := make([]*EventStoreEntry, count)
 
 	copy(results, partition.events[startIndex:endIndex+1])
-
 	return results, nil
+	/*
+		for i := 0; i <= endIndex; i++ {
+			if i >= startIndex {
+				results[index] = FromBinary(partition.events[position : position+partition.locations[i]])
+				index++
+			}
+			position += partition.locations[i]
+		}
+
+		<-partition.compactionChan
+		return results, nil*/
 }
 
 func (partition *MemoryEventStoreAggregatePartition) Append(entry *EventStoreEntry) error {
+	//partition.compactionChan<-struct{}{}
+
+	//log.Printf("Append on [%d]: % v", partition.id, entry)
 	partition.events = append(partition.events, entry)
+	//log.Printf("Events [ %d, %d ]", len(partition.events), cap(partition.events))
+	/*
+		log.Printf("Append on [%d]: % v", partition.id, entry)
+		partition.appendChan <- entry
+		log.Printf("Appended on [%d]", partition.id)
+		//partition.locations = append(partition.locations, int(HEADER_SIZE+entry.Length()))
+		//partition.events = append(partition.events, entry.data...)
+	*/
 	return nil
 }

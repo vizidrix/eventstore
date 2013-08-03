@@ -16,12 +16,14 @@ type FileSystemEventStorePartition struct {
 	aggregateStore map[int64][]byte
 }
 
+/*
 func NewFileSystemEventStore(connString string) EventStorer {
 	return &FileSystemEventStore{
 		eventStore: make(map[uint32]*FileSystemEventStorePartition),
 	}
 }
-
+*/
+/*
 func (es *FileSystemEventStore) RegisterKind(kind *AggregateKind) EventPartitioner {
 	partition, foundPartition := es.eventStore[kind.Hash()]
 	if !foundPartition {
@@ -32,7 +34,7 @@ func (es *FileSystemEventStore) RegisterKind(kind *AggregateKind) EventPartition
 	}
 	return partition
 }
-
+*/
 func (partition *FileSystemEventStorePartition) LoadAll(id int64) ([]*EventStoreEntry, error) {
 	return nil, nil
 }
@@ -64,7 +66,7 @@ func (partition *FileSystemEventStorePartition) LoadIndexRange2(id int64, entrie
 		// Only return entries inside the range
 		if index >= startIndex {
 			// Load and return the entry at this index
-			entry := FromBinary(data[position:position+HEADER_SIZE], data[position+HEADER_SIZE:position+HEADER_SIZE+entryLength])
+			entry := FromBinary(data[position : position+HEADER_SIZE+entryLength])
 			entries <- entry
 		}
 		// Move the position cursor to the next event
@@ -82,7 +84,7 @@ func (partition *FileSystemEventStorePartition) Append(id int64, entry *EventSto
 		//aggregate = make([]byte, 0, PARTITION_BUFFER)
 		aggregate = make([]byte, 0)
 	}
-	header, body := entry.ToBinary()
+	data := entry.ToBinary()
 	//log.Printf("Check for cap: %d -(%d+%d+%d) < %d", cap(aggregate), position, HEADER_SIZE, len(body), PARTITION_BUFFER)
 	// Check for room in the capacity and expand the aggregate if needed
 	/*if cap(aggregate)-(position+HEADER_SIZE+len(body)) < PARTITION_BUFFER {
@@ -90,10 +92,11 @@ func (partition *FileSystemEventStorePartition) Append(id int64, entry *EventSto
 		copy(newData[0:position], aggregate)
 		aggregate = newData
 	}*/
-	newData := make([]byte, position+HEADER_SIZE+len(body))
+	newData := make([]byte, position+len(data))
 	copy(newData, aggregate)
-	copy(newData[position:], header)
-	copy(newData[position+HEADER_SIZE:], body)
+	copy(newData[position:], data)
+	//copy(newData[position:], header)
+	//copy(newData[position+HEADER_SIZE:], body)
 
 	partition.aggregateStore[id] = newData
 

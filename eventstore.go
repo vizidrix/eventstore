@@ -38,6 +38,16 @@ type BinSerializable interface {
 	FromBinary([]byte) (interface{}, error)
 }
 
+type EventReader interface {
+	LoadAll() ([]*EventStoreEntry, error)
+	LoadIndexRange(startIndex int, endIndex int) ([]*EventStoreEntry, error)
+}
+
+type EventWriter interface {
+	Append(entry *EventStoreEntry) error
+}
+
+/*
 type ReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
 	//LoadAll(id int64, entries chan<- *EventStoreEntry) error
@@ -46,7 +56,7 @@ type ReadEventStorer interface {
 	//LoadIndexRange(id int64, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) error
 	LoadIndexRange(id int64, startIndex uint64, endIndex uint64) ([]*EventStoreEntry, error)
 }
-
+*/
 /*
 type AsyncReadEventStorer interface {
 	// Returns an array of all EventStoreEntry's for the aggregate uri
@@ -55,10 +65,11 @@ type AsyncReadEventStorer interface {
 	LoadIndexRangeAsync(uri *AggregateUri, entries chan<- *EventStoreEntry, startIndex uint64, endIndex uint64) (completeChan <-chan struct{}, errorChan <-chan error)
 }
 */
-
+/*
 type WriteEventStorer interface {
 	Append(id int64, entry *EventStoreEntry) error
 }
+*/
 
 /*
 type AsyncWriteEventStorer interface {
@@ -81,42 +92,37 @@ type AsyncEventStorer interface {
 
 type EventStorer interface {
 	//SyncEventStorer
-	RegisterKind(kind *AggregateKind) EventPartitioner
+	Kind(kind *AggregateKind) KindPartitioner
 }
 
-type EventPartitioner interface {
-	ReadEventStorer
-	WriteEventStorer
+type KindPartitioner interface {
+	Aggregate(id int64) AggregatePartitioner
+}
+
+type AggregatePartitioner interface {
+	EventReader
+	EventWriter
 }
 
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "ffs://") {
-		return NewFragmentFileSystemEventStore(connString), nil
+		//return NewFileSystemEventStore(connString), nil
+
+		return NewMemoryEventStore(connString), nil
+
 		//} else if strings.HasPrefix(connString, "fs://") {
 		//	return NewFileSystemEventStore(), nil
+		//} else if strings.HasPrefix(connString, "chan://") {
+		//	return NewChanEventStore(connString), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryEventStore(connString), nil
 	} else {
 		return nil, errors.New("Unable to find delimiter in connection string")
 	}
-
-	/*if index := connString.IndexOf("://"); index < 0 {
-		return nil, errors.New("Unable to find delimiter in connection string")
-	}
-	switch connString[0:2] {
-	case "fs":
-		{
-			return &FileSystemEventStore{}, nil
-		}
-	case "me":
-		{
-			return &MemoryEventStore{}, nil
-		}
-	}*/
-	//return nil, errors.New("Invalid EventStore connection string")
 }
 
 /* -- Replaced by AggregateKind and the -> AggregateUri ability */
+/*
 type Domain struct {
 	path      string
 	namespace string
@@ -135,7 +141,7 @@ type Aggregate struct {
 type IEvent interface {
 	ToBinary() ([]byte, error)
 }
-
+*/
 /*
 func (es EventStorer) Domain(namespace string) (*Domain, error) {
 	path := fmt.Sprintf("%s%s/", es.path, namespace)
@@ -176,6 +182,7 @@ func (aggregate *Aggregate) LoadAll() ([]IEvent, error) {
 }
 */
 
+/*
 func (aggregate *Aggregate) Append(event IEvent) error {
 	data, _ := event.ToBinary()
 	log.Printf("Got data: %d", data)
@@ -194,40 +201,40 @@ func (aggregate *Aggregate) Append(event IEvent) error {
 
 	log.Printf("Should have written %d bytes to file: %s", count, aggregate.path)
 	return nil
-
-	/*
-		//file, err := os.Open(aggregate.path)
-		file, err := makeFile(aggregate.path)
-		//defer file.Close()
-		if err != nil {
-			log.Printf("Error opening file: %s", aggregate.path)
-			return err
-		}
-
-		count, err := file.Write(data)
-		file.Close()
-
-		if err != nil {
-			log.Printf("Error writing to file: %s", err)
-			return err
-		}
-		log.Printf("Wrote %d bytes to file %s", count, aggregate.path)
-		//buffer := new(bytes.Buffer)
-		//binary.Write(buffer, binary.BigEndian, int32(len(data)))
-		//buffer.Write(data)
-		//log.Printf("Buffer: %s", buffer)
-		//file, _ := getFile(aggregate.path)
-
-		//WriteData(file, data)
-
-		//sz, _ := file.Write(buffer.Bytes())
-		//sz, _ := file.Write(data)
-
-		//log.Printf("%d bytes written", sz)
-
-		return nil
-	*/
 }
+*/
+/*
+	//file, err := os.Open(aggregate.path)
+	file, err := makeFile(aggregate.path)
+	//defer file.Close()
+	if err != nil {
+		log.Printf("Error opening file: %s", aggregate.path)
+		return err
+	}
+
+	count, err := file.Write(data)
+	file.Close()
+
+	if err != nil {
+		log.Printf("Error writing to file: %s", err)
+		return err
+	}
+	log.Printf("Wrote %d bytes to file %s", count, aggregate.path)
+	//buffer := new(bytes.Buffer)
+	//binary.Write(buffer, binary.BigEndian, int32(len(data)))
+	//buffer.Write(data)
+	//log.Printf("Buffer: %s", buffer)
+	//file, _ := getFile(aggregate.path)
+
+	//WriteData(file, data)
+
+	//sz, _ := file.Write(buffer.Bytes())
+	//sz, _ := file.Write(data)
+
+	//log.Printf("%d bytes written", sz)
+
+	return nil
+*/
 
 func WriteData(dest io.Writer, data []byte) error {
 	return binary.Write(dest, binary.BigEndian, data)

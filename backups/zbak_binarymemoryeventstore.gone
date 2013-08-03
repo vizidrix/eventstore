@@ -1,0 +1,198 @@
+package eventstore
+
+import (
+	"errors"
+	//"fmt"
+	"log"
+	//"time"
+	"fmt"
+)
+
+func ignore_memoryeventstore() { log.Printf(fmt.Sprintf("")) }
+
+const (
+	ENTRY_PARTITION_BUFFER = 0 //1024 * 4
+	ENTRYSTORE_INCREMENT   = 32
+	LOCATION_CACHE_SIZE    = 128
+	//APPEND_CHAN_BUFFER     = 1024 // Buffer on first receipt until timer or request
+	// Compaction on request?
+)
+
+type MemoryEventStore struct {
+	connString string
+	kindStore  map[uint32]*MemoryEventStoreKindPartition
+}
+
+type MemoryEventStoreKindPartition struct {
+	aggregateStore map[int64]*MemoryEventStoreAggregatePartition //[][]byte
+}
+
+type MemoryEventStoreAggregatePartition struct {
+	//bufferPosition int
+	// The goal of the cache is to keep the sequence of events related to this aggregate close
+	// in memory and avoid as many alloc's as possible
+	//bufferCache []byte
+	locations []int
+	events    []byte
+	//appendChan chan []byte
+}
+
+func NewMemoryEventStore(connString string) EventStorer {
+	return &MemoryEventStore{
+		connString: connString,
+		kindStore:  make(map[uint32]*MemoryEventStoreKindPartition),
+	}
+}
+
+func (es *MemoryEventStore) Kind(kind *AggregateKind) KindPartitioner {
+	partition, foundPartition := es.kindStore[kind.Hash()]
+	if !foundPartition {
+		partition = &MemoryEventStoreKindPartition{
+			aggregateStore: make(map[int64]*MemoryEventStoreAggregatePartition), //[][]byte),
+		}
+		es.kindStore[kind.Hash()] = partition
+	}
+	return partition
+}
+
+func (kindPartition *MemoryEventStoreKindPartition) Aggregate(id int64) AggregatePartitioner {
+	partition, foundPartition := kindPartition.aggregateStore[id]
+	if !foundPartition {
+		partition = &MemoryEventStoreAggregatePartition{
+			//bufferPosition: 0,
+			//bufferCache:    make([]byte, ENTRY_PARTITION_BUFFER),
+			//events:         make([][]byte, 0, ENTRYSTORE_INCREMENT),
+			locations: make([]int, 0, LOCATION_CACHE_SIZE),
+			events:    make([]byte, 0, ENTRY_PARTITION_BUFFER),
+			//appendChan: make(chan []byte, APPEND_CHAN_BUFFER),
+		}
+		kindPartition.aggregateStore[id] = partition
+	}
+	return partition
+}
+
+func (aggregatePartition *MemoryEventStoreAggregatePartition) LoadAll() ([]*EventStoreEntry, error) {
+	return aggregatePartition.LoadIndexRange(0, MaxInt)
+}
+
+// Tests for start / end range checks
+func (partition *MemoryEventStoreAggregatePartition) LoadIndexRange(startIndex int, endIndex int) ([]*EventStoreEntry, error) {
+	if startIndex < 0 {
+		return nil, errors.New("Invalid startIndex")
+	}
+	if endIndex <= startIndex {
+		return nil, errors.New("End index should be greater than start index")
+	}
+	// Move end index into range
+	if endIndex > len(partition.locations) {
+		endIndex = len(partition.locations) - 1
+	}
+	// If start point is beyond length bail out
+	if startIndex > endIndex {
+		return make([]*EventStoreEntry, 0), nil
+	}
+
+	index := 0
+	position := 0
+	results := make([]*EventStoreEntry, endIndex-startIndex+1)
+	for i := 0; i <= endIndex; i++ {
+		if i >= startIndex {
+			results[index] = FromBinary(partition.events[position : position+partition.locations[i]])
+			index++
+		}
+		position += partition.locations[i]
+	}
+
+	return results, nil
+}
+
+/*
+func (partition *MemoryEventStoreAggregatePartition) AllocateBuffer(length int) []byte {
+	//position := len(partition.bufferCache)
+	start := partition.bufferPosition
+	end := start + HEADER_SIZE + length
+	size := cap(partition.bufferCache)
+	partition.bufferPosition = end
+	//log.Printf("start: %d - end: %d - size: %d", start, end, size)
+	//log.Printf("Size: %d, pos: %d - %d / cap %d", length, start, end, cap(partition.bufferCache))
+	if end > size {
+		//log.Printf("Resizing buffer cache from %d to %d", size, size+ENTRY_PARTITION_BUFFER)
+		temp := make([]byte, size+ENTRY_PARTITION_BUFFER)
+		copy(temp, partition.bufferCache)
+		partition.bufferCache = temp
+	}
+	return partition.bufferCache[start:end]
+
+	//copy(partition.bufferCache[start:end], entry.data)
+
+	//result := partition.bufferCache[start:end]
+	//log.Printf("Position: %d", partition.bufferPosition)
+	//partition.bufferPosition = end
+	//log.Printf("Position: %d", partition.bufferPosition)
+	//return result
+}
+*/
+func (partition *MemoryEventStoreAggregatePartition) Append(entry *EventStoreEntry) error {
+	partition.locations = append(partition.locations, int(HEADER_SIZE+entry.Length()))
+	partition.events = append(partition.events, entry.data...)
+
+	/*
+		length := entry.Length()
+		newEntry := partition.AllocateBuffer(int(length))
+		//newEntry := make([]byte, HEADER_SIZE+length)
+		//log.Printf("Temp: [ %d / %d ]", len(temp), cap(temp))
+		//log.Printf("Temp: % v", temp)
+
+		//
+		//log.Printf("newEntry: [ %d / %d ]", len(newEntry), cap(newEntry))
+
+		copy(newEntry[0:HEADER_SIZE+length], entry.data)
+
+		//copy(newEntry[0:HEADER_SIZE], entry.data)
+		//copy(newEntry[HEADER_SIZE:], entry.Data())
+
+
+
+		position := len(partition.events)
+		partition.events = partition.events[0 : position+1]
+		partition.events[position] = newEntry
+
+		if position+1 >= cap(partition.events) {
+			temp := make([][]byte, position+1, cap(partition.events)+ENTRYSTORE_INCREMENT)
+			copy(temp[0:position+1], partition.events)
+			partition.events = temp
+			//log.Printf("Growing events: %d [ %d / %d ]", position, len(partition.events), cap(partition.events))
+		}
+	*/
+	return nil
+}
+
+//newEntry := make([]byte, HEADER_SIZE+entry.Length())
+//copy(newEntry[0:HEADER_SIZE], entry.data)
+//copy(newEntry[HEADER_SIZE:], entry.Data())
+
+//entryStore, foundEntries := partition..aggregateStore[id]
+//if !foundEntries {
+// Allocate slice of slices with extra
+//	entryStore = make([][]byte, 1, ENTRYSTORE_INCREMENT)
+
+//	entryStore[0] = newEntry
+//} else {
+//position := len(entryStore)
+//entryStore = entryStore[0 : position+1]
+//entryStore[position] = newEntry
+
+// If there is no more room to append we have to grow
+//if len(entryStore) >= cap(entryStore) {
+//log.Printf("Growing entry store: { %d -> %d }", len(entryStore), cap(entryStore)*2)
+//	temp := make([][]byte, len(entryStore), cap(entryStore)+ENTRYSTORE_INCREMENT)
+//	copy(temp[0:len(entryStore)], entryStore)
+//	entryStore = temp
+//log.Printf("Extended entry store: %d / %d", len(entryStore), cap(entryStore))
+//}
+//}
+
+//partition.aggregateStore[id] = entryStore
+
+//return nil
+//}

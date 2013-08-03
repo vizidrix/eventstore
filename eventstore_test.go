@@ -33,14 +33,13 @@ func Test_Should_produce_correct_CRC_for_event_entry(t *testing.T) {
 	entry := goes.NewEventStoreEntryFrom(5, data)
 
 	// Assert
-	AreNotEqual(t, int16(0), entry.Header().CRC(), "CRC should have been calculated")
+	AreNotEqual(t, int16(0), entry.CRC(), "CRC should have been calculated")
 	crc := crc32.Checksum(entry.Data(), crc32.MakeTable(crc32.Castagnoli))
-	AreEqual(t, crc, entry.Header().CRC(), "CRC should be correct")
+	AreEqual(t, crc, entry.CRC(), "CRC should be correct")
 }
 
 func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing.T) {
 	// Arrange
-	//path := "/eventstore/"
 	path := "mem://"
 
 	// Act
@@ -64,32 +63,6 @@ func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing
 	}
 }
 
-/*
-func Test_Should_try_to_connect_to_FileSystemEventStore_with_correct_path(t *testing.T) {
-	// Arrange
-	path := "fs://eventstore/"
-
-	// Act
-	eventStore, err := goes.Connect(path)
-
-	// Assert
-	if err != nil {
-		log.Printf("Connect failed: %s", err)
-		t.Fail()
-		return
-	}
-	switch es := (eventStore).(type) {
-	case *goes.FileSystemEventStore:
-		{
-		}
-	default:
-		{
-			log.Printf("Wrong event store type created: %s", es)
-			t.Fail()
-		}
-	}
-}
-*/
 func Test_Should_try_to_connect_to_FragmentFileSystemEventStore_with_correct_path(t *testing.T) {
 	// Arrange
 	path := "ffs://eventstore/"
@@ -104,7 +77,7 @@ func Test_Should_try_to_connect_to_FragmentFileSystemEventStore_with_correct_pat
 		return
 	}
 	switch es := (eventStore).(type) {
-	case *goes.FragmentFileSystemEventStore:
+	case *goes.MemoryEventStore:
 		{
 		}
 	default:
@@ -148,55 +121,52 @@ func EventStoreSync_Should_return_empty_slice_for_new_id(t *testing.T, connStrin
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
-	partition := eventStore.RegisterKind(kind)
-	//uri := kind.ToAggregateUri(1)
-	//events := make(chan *goes.EventStoreEntry, 1)
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
 
 	// Act
-	events, _ := partition.LoadAll(1)
+	events, _ := aggregatePartition.LoadAll()
 
 	// Assert
 	AreEqual(t, 0, len(events), "Shouldn't have received any events")
-	/*
-		select {
-		case event := <-events:
-			{
-				log.Printf("Shouldn't have received any events: %s", event)
-				t.Fail()
-			}
-		case <-time.After(1 * time.Microsecond):
-			{
-				// Shouldn't have anything on events channel
-			}
+}
+
+func Test_Should_(t *testing.T) {
+	connString := "mem://"
+	eventCount := 100
+	kind := goes.NewAggregateKind("namespace", "type")
+	eventStoreEntry := Get_EventStoreEntry(10)
+	i := 0
+	index := 0
+	for i = 0; i < 1; i++ {
+		eventStore, _ := goes.Connect(connString)
+		kindPartition := eventStore.Kind(kind)
+		aggregatePartition := kindPartition.Aggregate(int64(i))
+
+		for index = 0; index < eventCount; index++ {
+			aggregatePartition.Append(eventStoreEntry)
+
 		}
-	*/
+	}
 }
 
 func EventStoreSync_Should_return_single_matching_event_for_existing_id(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "type")
-	partition := eventStore.RegisterKind(kind)
-	//uri := kind.ToAggregateUri(1)
-	//events := make(chan *goes.EventStoreEntry, 1)
-	data := make([]byte, 10)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(10).Data()
 	entry := goes.NewEventStoreEntry(10, 1, 1, data)
-	partition.Append(1, entry)
-	//log.Printf("Appeneded: % v", entry)
+	aggregatePartition.Append(entry)
 
 	// Act
-	events, _ := partition.LoadAll(1)
-
-	//log.Printf("Waiting for events...")
-	//actual := <-events
+	events, _ := aggregatePartition.LoadAll()
 
 	// Assert
-	AreEqual(t, uint16(10), events[0].Header().Length(), "Length should have been int32 10")
-	AreEqual(t, uint16(1), events[0].Header().EventType(), "EvenType should have been set")
-	AreEqual(t, uint32(1), events[0].Header().CRC(), "CRC should have been calculated")
+	AreEqual(t, uint16(10), events[0].Length(), "Length should have been int32 10")
+	AreEqual(t, uint16(1), events[0].EventType(), "EvenType should have been set")
+	AreEqual(t, uint32(1), events[0].CRC(), "CRC should have been calculated")
 	AreAllEqual(t, data, events[0].Data(), "Data should have been set")
 }
 
@@ -204,106 +174,61 @@ func EventStoreSync_Should_return_middle_events_for_version_range(t *testing.T, 
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
-	//uri := kind.ToAggregateUri(1)
-	//events := make(chan *goes.EventStoreEntry, 5)
-	data := make([]byte, 10)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(10).Data()
 	for index := 0; index < 5; index++ {
 		entry := goes.NewEventStoreEntry(10, uint16(index), uint32(index), data)
-		partition.Append(1, entry)
+		aggregatePartition.Append(entry)
 	}
 
 	// Act
-	events, _ := partition.LoadIndexRange(1, 2, 3)
+	events, _ := aggregatePartition.LoadIndexRange(2, 3)
 
 	// Assert
 	for index := 0; index < 2; index++ {
-		AreEqual(t, uint16(10), events[index].Header().Length(), "Length should have been int32 10")
-		AreEqual(t, uint16(index+2), events[index].Header().EventType(), "EvenType should have been set")
-		AreEqual(t, uint32(index+2), events[index].Header().CRC(), "CRC should have been calculated")
+		AreEqual(t, uint16(10), events[index].Length(), "Length should have been int32 10")
+		AreEqual(t, uint16(index+2), events[index].EventType(), "EvenType should have been set")
+		AreEqual(t, uint32(index+2), events[index].CRC(), "CRC should have been calculated")
 		AreAllEqual(t, data, events[index].Data(), "Data should have been set")
-		//log.Printf("Index: %d", index)
-		/*select {
-		case event := <-events:
-			{
-				//log.Printf("Event received: % x", event)
-
-
-			}
-		case <-time.After(1 * time.Millisecond):
-			{
-				log.Printf("Shouldn't have timed out")
-				t.Fail()
-				return
-			}
-		}*/
 	}
 }
 
 func EventStoreSync_Should_return_two_matching_events_for_existing_ids(t *testing.T, connString string) {
 	// Arrange
+	log.Printf("\n\nReturn two\n\n")
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
-	//uri := kind.ToAggregateUri(1)
-	//events := make(chan *goes.EventStoreEntry, 2)
-	data := make([]byte, 10)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(10).Data()
 	entry1 := goes.NewEventStoreEntry(10, 0, 0, data)
 	entry2 := goes.NewEventStoreEntry(10, 1, 1, data)
 
-	partition.Append(1, entry1)
-	partition.Append(1, entry2)
+	aggregatePartition.Append(entry1)
+	aggregatePartition.Append(entry2)
 
 	// Act
-	events, _ := partition.LoadAll(1)
+	events, _ := aggregatePartition.LoadAll()
 
 	// Assert
 	for i := 0; i < 2; i++ {
-		AreEqual(t, uint16(10), events[i].Header().Length(), "Length should have been int32 10")
-		AreEqual(t, uint16(i), events[i].Header().EventType(), "EvenType should have been set")
-		AreEqual(t, uint32(i), events[i].Header().CRC(), "CRC should have been calculated")
+		AreEqual(t, uint16(10), events[i].Length(), "Length should have been int32 10")
+		AreEqual(t, uint16(i), events[i].EventType(), "EvenType should have been set")
+		AreEqual(t, uint32(i), events[i].CRC(), "CRC should have been calculated")
 		AreAllEqual(t, data, events[i].Data(), "Data should have been set")
 	}
-	/*
-		for index := 0; index < 2; index++ {
-			select {
-			case event := <-events:
-				{
-					AreEqual(t, uint16(10), event.Header().Length(), "Length should have been int32 10")
-					AreEqual(t, uint16(index), event.Header().EventType(), "EvenType should have been set")
-					AreEqual(t, uint32(index), event.Header().CRC(), "CRC should have been calculated")
-					AreAllEqual(t, data, event.Data(), "Data should have been set")
-				}
-			case <-time.After(1 * time.Millisecond):
-				{
-					log.Printf("Shouldn't have timed out")
-					t.Fail()
-					return
-				}
-			}
-		}
-	*/
 }
 
 func EventStoreSync_Should_not_panic_when_range_is_too_long(t *testing.T, connString string) {
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
-	data := make([]byte, goes.MAX_EVENT_SIZE)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(goes.MAX_EVENT_SIZE).Data()
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE, 1, 1, data)
-	//events := make(chan *goes.EventStoreEntry, 1)
-	//uri := kind.ToAggregateUri(1)
-	partition.Append(1, entry1)
-	partition.LoadIndexRange(1, 0, 4)
+	aggregatePartition.Append(entry1)
+	aggregatePartition.LoadIndexRange(0, 4)
 }
 
 func EventStoreSync_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t *testing.T, connString string) {
@@ -315,14 +240,11 @@ func EventStoreSync_Should_panic_when_event_length_greater_than_max_in_unchecked
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
-	data := make([]byte, goes.MAX_EVENT_SIZE+1)
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(goes.MAX_EVENT_SIZE + 1).Data()
 	entry1 := goes.NewEventStoreEntry(goes.MAX_EVENT_SIZE+1, 1, 1, data)
-	//uri := kind.ToAggregateUri(1)
-	partition.Append(1, entry1)
+	aggregatePartition.Append(entry1)
 }
 
 func EventStoreSync_Should_panic_when_reported_event_length_greater_than_actual_in_unchecked_ctor(t *testing.T, connString string) {
@@ -334,14 +256,11 @@ func EventStoreSync_Should_panic_when_reported_event_length_greater_than_actual_
 	}()
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
-	data := make([]byte, 3082) // <- set to less than length
-	for index, _ := range data {
-		data[index] = byte(index)
-	}
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
+	data := Get_EventStoreEntry(3082).Data()
 	entry1 := goes.NewEventStoreEntry(3083, 1, 1, data) // <- invalid length!
-	//uri := kind.ToAggregateUri(1)
-	partition.Append(1, entry1)
+	aggregatePartition.Append(entry1)
 }
 
 func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testing.T, connString string) {
@@ -349,18 +268,16 @@ func EventStoreSync_Should_fail_if_write_index_is_not_unique_when_expected_to_be
 
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
-	partition := eventStore.RegisterKind(kind)
+	kindPartition := eventStore.Kind(kind)
+	aggregatePartition := kindPartition.Aggregate(1)
 	entry1 := Get_EventStoreEntry(10)
 
 	roundComplete := make(chan struct{})
 
 	for i := 0; i < count; i++ {
-		index := i
 		go func() {
-			//uri := kind.ToAggregateUri(int64(index))
-			partition.Append(int64(index), entry1)
-			//events := make(chan *goes.EventStoreEntry, 2)
-			partition.LoadAll(int64(index))
+			aggregatePartition.Append(entry1)
+			aggregatePartition.LoadAll()
 			roundComplete <- struct{}{}
 		}()
 	}

@@ -1,0 +1,216 @@
+const defaultBufSize = 4096
+const gcTime = 1000
+
+var buf []byte
+
+var gcTimer int
+
+func MakeBuffer(size int, capacity int) (buffer []byte) {
+	buffer = make([]byte, size, capacity)
+	for i := 0; i < size; i++ {
+		buffer[i] = byte(i % 256)
+	}
+	return
+}
+
+func GrowAppend(b *testing.B, loops int, size int) {
+	//log.Printf("Running: %d", b.N)
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		gcTimer++
+		if gcTimer == gcTime {
+			runtime.GC()
+			gcTimer = 0
+		}
+
+		data := MakeBuffer(size, size)
+		buf := MakeBuffer(defaultBufSize, defaultBufSize)
+
+		b.StartTimer()
+
+		for loop := 0; loop < loops; loop++ {
+			buf = append(buf, data...)
+		}
+	}
+}
+
+func GrowMake(b *testing.B, loops int, size int) {
+	//log.Printf("Running: %d", b.N)
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		gcTimer++
+		if gcTimer == gcTime {
+			runtime.GC()
+			gcTimer = 0
+		}
+
+		data := MakeBuffer(size, size)
+		buf := MakeBuffer(defaultBufSize, defaultBufSize)
+
+		b.StartTimer()
+
+		for loop := 0; loop < loops; loop++ {
+			l := len(buf)
+			newBuf := make([]byte, l+len(data))
+			copy(newBuf[0:], buf)
+			buf = newBuf
+			for i, item := range data {
+				buf[l+i] = item
+			}
+		}
+	}
+}
+
+func GrowBuffer(b *testing.B, loops int, size int) {
+	//log.Printf("Running: %d", b.N)
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		gcTimer++
+		if gcTimer == gcTime {
+			runtime.GC()
+			gcTimer = 0
+		}
+
+		data := MakeBuffer(size, size)
+		buf := MakeBuffer(defaultBufSize, defaultBufSize)
+
+		b.StartTimer()
+
+		for loop := 0; loop < loops; loop++ {
+			l := len(buf)
+			c := cap(buf)
+			d := len(data)
+			//log.Printf("%d - %d - %d", l, c, d)
+			if l+d > c {
+				if d > c { // Data size bigger than cap
+					c = d
+				}
+				if d <= 256 {
+					target := (l + d) / 4
+					if target < d {
+						target = c
+					}
+					newBuf := make([]byte, l+d, c+target)
+					copy(newBuf, buf)
+					buf = newBuf
+				} else {
+					newBuf := make([]byte, l+d, c+(d*2))
+					copy(newBuf, buf)
+					buf = newBuf
+				}
+			} else {
+				buf = buf[0 : l+d]
+			}
+			for i, item := range data {
+				buf[l+i] = item
+			}
+		}
+	}
+}
+
+const (
+	LOOPS = 10
+)
+
+func BenchmarkGrowAppend10(b *testing.B) {
+	GrowAppend(b, LOOPS, 10)
+}
+
+func BenchmarkGrowAppend64(b *testing.B) {
+	GrowAppend(b, LOOPS, 64)
+}
+
+func BenchmarkGrowAppend256(b *testing.B) {
+	GrowAppend(b, LOOPS, 256)
+}
+
+func BenchmarkGrowAppend1024(b *testing.B) {
+	GrowAppend(b, LOOPS, 1024)
+}
+
+func BenchmarkGrowAppend4096(b *testing.B) {
+	GrowAppend(b, LOOPS, 4096)
+}
+
+func BenchmarkGrowAppend16384(b *testing.B) {
+	GrowAppend(b, LOOPS, 16384)
+}
+
+func BenchmarkGrowAppend65536(b *testing.B) {
+	GrowAppend(b, LOOPS, 65536)
+}
+
+func BenchmarkGrowAppend262144(b *testing.B) {
+	GrowAppend(b, LOOPS, 262144)
+}
+*/
+
+/*
+func BenchmarkGrowMake10(b *testing.B) {
+	GrowMake(b, LOOPS, 10)
+}
+
+func BenchmarkGrowMake64(b *testing.B) {
+	GrowMake(b, LOOPS, 64)
+}
+
+func BenchmarkGrowMake256(b *testing.B) {
+	GrowMake(b, LOOPS, 256)
+}
+
+func BenchmarkGrowMake1024(b *testing.B) {
+	GrowMake(b, LOOPS, 1024)
+}
+
+func BenchmarkGrowMake4096(b *testing.B) {
+	GrowMake(b, LOOPS, 4096)
+}
+*/
+
+/*
+func BenchmarkGrowMake16384(b *testing.B) {
+	GrowMake(b, LOOPS, 16384)
+}
+
+func BenchmarkGrowMake65536(b *testing.B) {
+	GrowMake(b, LOOPS, 65536)
+}
+
+func BenchmarkGrowMake262144(b *testing.B) {
+	GrowMake(b, LOOPS, 262144)
+}
+*/
+/*
+func BenchmarkGrowBuffer10(b *testing.B) {
+	GrowBuffer(b, LOOPS, 10)
+}
+
+func BenchmarkGrowBuffer64(b *testing.B) {
+	GrowBuffer(b, LOOPS, 64)
+}
+
+func BenchmarkGrowBuffer256(b *testing.B) {
+	GrowBuffer(b, LOOPS, 256)
+}
+
+func BenchmarkGrowBuffer1024(b *testing.B) {
+	GrowBuffer(b, LOOPS, 1024)
+}
+
+func BenchmarkGrowBuffer4096(b *testing.B) {
+	GrowBuffer(b, LOOPS, 4096)
+}
+*/
+/*
+func BenchmarkGrowBuffer16384(b *testing.B) {
+	GrowBuffer(b, LOOPS, 16384)
+}
+
+func BenchmarkGrowBuffer65536(b *testing.B) {
+	GrowBuffer(b, LOOPS, 65536)
+}
+
+func BenchmarkGrowBuffer262144(b *testing.B) {
+	GrowBuffer(b, LOOPS, 262144)
+}
+*/
