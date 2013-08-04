@@ -8,6 +8,7 @@ import (
 
 func ignore_filesystemeventstore() { log.Printf("") }
 
+/*
 type FileSystemEventStore struct {
 	eventStore map[uint32]*FileSystemEventStorePartition
 }
@@ -16,30 +17,11 @@ type FileSystemEventStorePartition struct {
 	aggregateStore map[int64][]byte
 }
 
-/*
-func NewFileSystemEventStore(connString string) EventStorer {
-	return &FileSystemEventStore{
-		eventStore: make(map[uint32]*FileSystemEventStorePartition),
-	}
-}
-*/
-/*
-func (es *FileSystemEventStore) RegisterKind(kind *AggregateKind) EventPartitioner {
-	partition, foundPartition := es.eventStore[kind.Hash()]
-	if !foundPartition {
-		partition = &FileSystemEventStorePartition{
-			aggregateStore: make(map[int64][]byte),
-		}
-		es.eventStore[kind.Hash()] = partition
-	}
-	return partition
-}
-*/
-func (partition *FileSystemEventStorePartition) LoadAll(id int64) ([]*EventStoreEntry, error) {
+func (partition *FileSystemEventStorePartition) Get(id int64) ([]*EventStoreEntry, error) {
 	return nil, nil
 }
 
-func (partition *FileSystemEventStorePartition) LoadIndexRange(id int64, startIndex uint64, endIndex uint64) ([]*EventStoreEntry, error) {
+func (partition *FileSystemEventStorePartition) GetSlice(id int64, startIndex uint64, endIndex uint64) ([]*EventStoreEntry, error) {
 	return nil, nil
 }
 
@@ -75,7 +57,7 @@ func (partition *FileSystemEventStorePartition) LoadIndexRange2(id int64, entrie
 	return nil
 }
 
-func (partition *FileSystemEventStorePartition) Append(id int64, entry *EventStoreEntry) error {
+func (partition *FileSystemEventStorePartition) Put(id int64, entry *EventStoreEntry) error {
 	aggregate, foundAggregate := partition.aggregateStore[id]
 	position := 0
 	if foundAggregate {
@@ -87,11 +69,11 @@ func (partition *FileSystemEventStorePartition) Append(id int64, entry *EventSto
 	data := entry.ToBinary()
 	//log.Printf("Check for cap: %d -(%d+%d+%d) < %d", cap(aggregate), position, HEADER_SIZE, len(body), PARTITION_BUFFER)
 	// Check for room in the capacity and expand the aggregate if needed
-	/*if cap(aggregate)-(position+HEADER_SIZE+len(body)) < PARTITION_BUFFER {
+	/if cap(aggregate)-(position+HEADER_SIZE+len(body)) < PARTITION_BUFFER {
 		newData := make([]byte, position, cap(aggregate)+PARTITION_BUFFER)
 		copy(newData[0:position], aggregate)
 		aggregate = newData
-	}*/
+	}/
 	newData := make([]byte, position+len(data))
 	copy(newData, aggregate)
 	copy(newData[position:], data)
@@ -102,3 +84,5 @@ func (partition *FileSystemEventStorePartition) Append(id int64, entry *EventSto
 
 	return nil
 }
+
+*/

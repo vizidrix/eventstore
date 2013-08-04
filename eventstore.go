@@ -16,13 +16,17 @@ import (
 	"time"
 )
 
-func ignore() { log.Println(fmt.Sprintf("", 10)) }
+func event_store_ignore() { log.Println(fmt.Sprintf("", 10)) }
 
 const (
 	MaxUint   = ^uint(0)
 	MinUint   = 0
 	MaxInt    = int(^uint(0) >> 1)
 	MinInt    = -(MaxInt - 1)
+	MaxUint16 = ^uint16(0)
+	MinUint16 = 0
+	MaxInt16  = int16(^uint16(0) >> 1)
+	MinInt16  = -(MaxInt16 - 1)
 	MaxUint32 = ^uint32(0)
 	MinUint32 = 0
 	MaxInt32  = int32(^uint32(0) >> 1)
@@ -33,18 +37,44 @@ const (
 	MinInt64  = -(MaxInt - 1)
 )
 
-type BinSerializable interface {
-	ToBinary() ([]byte, error)
-	FromBinary([]byte) (interface{}, error)
-}
-
 type EventReader interface {
-	LoadAll() ([]*EventStoreEntry, error)
-	LoadIndexRange(startIndex int, endIndex int) ([]*EventStoreEntry, error)
+	Get() (*EventSet, error)
+	GetSlice(startIndex int, endIndex int) (*EventSet, error)
 }
 
 type EventWriter interface {
-	Append(entry *EventStoreEntry) error
+	Put(eventType uint16, data []byte) error
+}
+
+type EventStorer interface {
+	//SyncEventStorer
+	Kind(kind *AggregateKind) KindPartitioner
+}
+
+type KindPartitioner interface {
+	Aggregate(id int64) AggregatePartitioner
+}
+
+type AggregatePartitioner interface {
+	EventReader
+	EventWriter
+}
+
+func Connect(connString string) (EventStorer, error) {
+	if strings.HasPrefix(connString, "ffs://") {
+		//return NewFileSystemEventStore(connString), nil
+
+		return NewMemoryES(connString), nil
+
+		//} else if strings.HasPrefix(connString, "fs://") {
+		//	return NewFileSystemEventStore(), nil
+		//} else if strings.HasPrefix(connString, "chan://") {
+		//	return NewChanEventStore(connString), nil
+	} else if strings.HasPrefix(connString, "mem://") {
+		return NewMemoryES(connString), nil
+	} else {
+		return nil, errors.New("Unable to find delimiter in connection string")
+	}
 }
 
 /*
@@ -89,37 +119,6 @@ type AsyncEventStorer interface {
 	AsyncWriteEventStorer
 }
 */
-
-type EventStorer interface {
-	//SyncEventStorer
-	Kind(kind *AggregateKind) KindPartitioner
-}
-
-type KindPartitioner interface {
-	Aggregate(id int64) AggregatePartitioner
-}
-
-type AggregatePartitioner interface {
-	EventReader
-	EventWriter
-}
-
-func Connect(connString string) (EventStorer, error) {
-	if strings.HasPrefix(connString, "ffs://") {
-		//return NewFileSystemEventStore(connString), nil
-
-		return NewMemoryEventStore(connString), nil
-
-		//} else if strings.HasPrefix(connString, "fs://") {
-		//	return NewFileSystemEventStore(), nil
-		//} else if strings.HasPrefix(connString, "chan://") {
-		//	return NewChanEventStore(connString), nil
-	} else if strings.HasPrefix(connString, "mem://") {
-		return NewMemoryEventStore(connString), nil
-	} else {
-		return nil, errors.New("Unable to find delimiter in connection string")
-	}
-}
 
 /* -- Replaced by AggregateKind and the -> AggregateUri ability */
 /*

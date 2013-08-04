@@ -11,6 +11,9 @@ go tool pprof package.test cpu.out
 (pprof) top10
 ------------------------------------------------------------------------
 
+./eventstore.text -test.run=1000 -test.bench=. -test.cpuprofile=cpu.out -test.memprofile=mem.out
+
+./eventstore.test -test.bench=.20 -test.cpuprofile=cpu.out
 
 
  ASCII Subset

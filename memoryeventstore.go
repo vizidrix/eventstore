@@ -12,80 +12,84 @@ func ignore_chaneventstore() {
 	time.After(10)
 }
 
-type MemoryEventStore struct {
+type MemoryES struct {
 	connString string
-	kindStore  map[uint32]*MemoryEventStoreKindPartition
+	kindStore  map[uint32]*MemoryESKindPartition
 }
 
-type MemoryEventStoreKindPartition struct {
+type MemoryESKindPartition struct {
 	kind           *AggregateKind
-	aggregateStore map[int64]*MemoryEventStoreAggregatePartition
+	aggregateStore map[int64]*MemoryESAggregatePartition
 }
 
-type MemoryEventStoreAggregatePartition struct {
+type MemoryESAggregatePartition struct {
 	id     int64
-	events []*EventStoreEntry
+	events *EventSet
 }
 
-func NewMemoryEventStore(connString string) EventStorer {
-	return &MemoryEventStore{
+func NewMemoryES(connString string) EventStorer {
+	return &MemoryES{
 		connString: connString,
-		kindStore:  make(map[uint32]*MemoryEventStoreKindPartition),
+		kindStore:  make(map[uint32]*MemoryESKindPartition),
 	}
 }
 
-func (es *MemoryEventStore) Kind(kind *AggregateKind) KindPartitioner {
+func (es *MemoryES) Kind(kind *AggregateKind) KindPartitioner {
 	partition, foundPartition := es.kindStore[kind.Hash()]
 	if !foundPartition {
-		partition = &MemoryEventStoreKindPartition{
+		partition = &MemoryESKindPartition{
 			kind:           kind,
-			aggregateStore: make(map[int64]*MemoryEventStoreAggregatePartition), //[][]byte),
+			aggregateStore: make(map[int64]*MemoryESAggregatePartition), //[][]byte),
 		}
 		es.kindStore[kind.Hash()] = partition
 	}
 	return partition
 }
 
-func (kindPartition *MemoryEventStoreKindPartition) Aggregate(id int64) AggregatePartitioner {
+func (kindPartition *MemoryESKindPartition) Aggregate(id int64) AggregatePartitioner {
 	partition, foundPartition := kindPartition.aggregateStore[id]
 	if !foundPartition {
-		partition = &MemoryEventStoreAggregatePartition{
+		partition = &MemoryESAggregatePartition{
 			id:     id,
-			events: make([]*EventStoreEntry, 0, 32),
+			events: NewEmptyEventSet(),
+			//events: make([]*EventStoreEntry, 0, 32),
 		}
 		kindPartition.aggregateStore[id] = partition
 	}
 	return partition
 }
 
-func (aggregatePartition *MemoryEventStoreAggregatePartition) LoadAll() ([]*EventStoreEntry, error) {
-	return aggregatePartition.LoadIndexRange(0, MaxInt)
+func (aggregatePartition *MemoryESAggregatePartition) Get() (*EventSet, error) {
+	return aggregatePartition.GetSlice(0, MaxInt)
 }
 
-func (partition *MemoryEventStoreAggregatePartition) LoadIndexRange(startIndex int, endIndex int) ([]*EventStoreEntry, error) {
+func (partition *MemoryESAggregatePartition) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
 	if startIndex < 0 {
 		return nil, errors.New("Invalid startIndex")
 	}
 	if endIndex <= startIndex {
 		return nil, errors.New("End index should be greater than start index")
 	}
-	// Move end index into range
-	if endIndex > len(partition.events) {
-		endIndex = len(partition.events) - 1
-	}
-	// If start point is beyond length bail out
-	if startIndex > endIndex || startIndex > len(partition.events) {
-		return make([]*EventStoreEntry, 0), nil
-	}
+	return nil, nil
+	/*
+		// Move end index into range
+		if endIndex > len(partition.events) {
+			endIndex = len(partition.events) - 1
+		}
+		// If start point is beyond length bail out
+		if startIndex > endIndex || startIndex > len(partition.events) {
+			return make([]*EventStoreEntry, 0), nil
+		}
 
-	results := make([]*EventStoreEntry, endIndex-startIndex+1)
+		results := make([]*EventStoreEntry, endIndex-startIndex+1)
 
-	copy(results, partition.events[startIndex:endIndex+1])
+		copy(results, partition.events[startIndex:endIndex+1])
 
-	return results, nil
+		return results, nil
+	*/
 }
 
-func (partition *MemoryEventStoreAggregatePartition) Append(entry *EventStoreEntry) error {
-	partition.events = append(partition.events, entry)
+func (partition *MemoryESAggregatePartition) Put(eventType uint16, data []byte) error {
+	//partition.events = append(partition.events, entry)
 	return nil
 }

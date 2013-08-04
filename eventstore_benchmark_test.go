@@ -4,12 +4,12 @@ import (
 	"runtime"
 	//"encoding/binary"
 	//"bytes"
-	goes "github.com/vizidrix/eventstore"
+	//goes "github.com/vizidrix/eventstore"
 	//. "github.com/vizidrix/eventstore/test_utils"
 	//"hash/crc32"
 	"log"
 	//"math/rand"
-	"testing"
+	//"testing"
 	"time"
 )
 
@@ -31,6 +31,8 @@ if gcTimer == gcTime {
 }
 */
 
+/*********
+
 func Get_EventStoreEntry(size int) *goes.EventStoreEntry {
 	data := make([]byte, size)
 	for index, _ := range data {
@@ -39,7 +41,7 @@ func Get_EventStoreEntry(size int) *goes.EventStoreEntry {
 	return goes.NewEventStoreEntry(uint16(size), 1, 1, data)
 }
 
-func Run_AppendOnlySync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
+func Run_PutOnly(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
 	//log.Printf("Count: %d", b.N)
 	b.StopTimer()
 	//eventStore, _ := goes.Connect(connString)
@@ -64,13 +66,13 @@ func Run_AppendOnlySync(b *testing.B, connString string, namespace string, kindN
 		}
 		b.StartTimer()
 		for index = 0; index < eventCount; index++ {
-			aggregatePartition.Append(eventStoreEntry)
+			aggregatePartition.Put(eventStoreEntry)
 		}
 		b.StopTimer()
 	}
 }
 
-func Run_ReadOnlySync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
+func Run_GetOnly(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
 	kind := goes.NewAggregateKind(namespace, kindName)
 	eventStoreEntry := Get_EventStoreEntry(eventSize)
 
@@ -83,7 +85,7 @@ func Run_ReadOnlySync(b *testing.B, connString string, namespace string, kindNam
 		kindPartition := eventStore.Kind(kind)
 		aggregatePartition := kindPartition.Aggregate(int64(i))
 		for index := 0; index < eventCount; index++ {
-			aggregatePartition.Append(eventStoreEntry)
+			aggregatePartition.Put(eventStoreEntry)
 		}
 		gcTimer++
 		if gcTimer == gcTime {
@@ -91,13 +93,13 @@ func Run_ReadOnlySync(b *testing.B, connString string, namespace string, kindNam
 			gcTimer = 0
 		}
 		b.StartTimer()
-		aggregatePartition.LoadAll()
+		aggregatePartition.Get()
 		b.StopTimer()
 	}
 	//log.Printf("Done iteration: %d", b.N)
 }
 
-func Run_AppendAndReadAllSync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
+func Run_PutGet(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
 	//b.StopTimer()
 	//eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind(namespace, kindName)
@@ -124,12 +126,15 @@ func Run_AppendAndReadAllSync(b *testing.B, connString string, namespace string,
 		}
 		b.StartTimer()
 		for index = 0; index < eventCount; index++ {
-			aggregatePartition.Append(eventStoreEntry)
+			aggregatePartition.Put(eventStoreEntry)
 		}
-		aggregatePartition.LoadAll()
+		aggregatePartition.Get()
 		b.StopTimer()
 	}
 }
+
+
+*********/
 
 /*
 func Run_AppendOnlyAsync(b *testing.B, connString string, namespace string, kindName string, eventSize int, eventCount int) {
