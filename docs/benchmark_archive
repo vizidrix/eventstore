@@ -1,3 +1,74 @@
+Working on optimizing copy operations
+
+Benchmark_EventSet_PutGet_10byte_b01xc00001	 5000000	       318 ns/op	     107 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00010	  500000	      3210 ns/op	    1071 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00100	   50000	     32167 ns/op	   10719 B/op	     401 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc01000	    5000	    322749 ns/op	  107196 B/op	    4011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc10000	     500	   3215554 ns/op	 1071964 B/op	   40116 allocs/op
+
+Benchmark_EventSet_PutGet_10byte_b10xc00001	 2000000	       855 ns/op	     276 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00010	  200000	      8593 ns/op	    2773 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00100	   20000	     86423 ns/op	   27732 B/op	     401 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc01000	    2000	    863620 ns/op	  277327 B/op	    4011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc10000	     200	   8633390 ns/op	 2773276 B/op	   40116 allocs/op
+
+Benchmark_EventSet_PutGet_1024byte_b01xc00001	 1000000	      2115 ns/op	    1127 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00010	  100000	     20952 ns/op	   11280 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00100	   10000	    212057 ns/op	  112803 B/op	     401 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc01000	    1000	   2102898 ns/op	 1128030 B/op	    4011 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc10000	     100	  21174752 ns/op	11280375 B/op	   40118 allocs/op
+
+Benchmark_EventSet_PutGet_1024byte_b10xc00001	  100000	     17870 ns/op	   10527 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00010	   10000	    179327 ns/op	  105279 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00100	    1000	   1795220 ns/op	 1052797 B/op	     402 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc01000	     100	  17896769 ns/op	10527979 B/op	    4020 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc10000	      10	 179752948 ns/op	105279795 B/op	   40208 allocs/op
+
+Benchmark_EventSet_PutGet_4096byte_b01xc00001	  200000	      7614 ns/op	    4237 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00010	   50000	     74666 ns/op	   42375 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00100	    2000	    747110 ns/op	  423762 B/op	     400 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc01000	     200	   7486335 ns/op	 4237620 B/op	    4009 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc10000	      20	  74755613 ns/op	42376204 B/op	   40099 allocs/op
+
+Benchmark_EventSet_PutGet_4096byte_b10xc00001	   50000	     68295 ns/op	   41558 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00010	    5000	    682383 ns/op	  415588 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00100	     500	   6829902 ns/op	 4155880 B/op	     407 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc01000	      50	  68457108 ns/op	41558804 B/op	    4071 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc10000	       5	 681269812 ns/op	415588044 B/op	   40714 allocs/op
+
+
+
+
+Benchmark_EventSet_PutGet_10byte_b01xc00001	 5000000	       349 ns/op	     106 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00010	  500000	      3332 ns/op	    1071 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00100	   50000	     33137 ns/op	   10715 B/op	     401 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc01000	    5000	    331287 ns/op	  107160 B/op	    4011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc10000	     500	   3302026 ns/op	 1071965 B/op	   40116 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00001	 2000000	       854 ns/op	     276 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00010	  200000	      8266 ns/op	    2772 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00100	   20000	     82679 ns/op	   27723 B/op	     401 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc01000	    2000	    817832 ns/op	  277234 B/op	    4011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc10000	     200	   8168231 ns/op	 2772348 B/op	   40110 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00001	 1000000	      2729 ns/op	    1127 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00010	  100000	     27245 ns/op	   11277 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00100	   10000	    270685 ns/op	  112765 B/op	     400 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc01000	    1000	   2696417 ns/op	 1127652 B/op	    4009 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc10000	     100	  27056429 ns/op	11276594 B/op	   40094 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00001	  100000	     23853 ns/op	   10536 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00010	   10000	    236175 ns/op	  105279 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00100	    1000	   2353923 ns/op	 1052797 B/op	     402 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc01000	     100	  23612623 ns/op	10527979 B/op	    4020 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc10000	      10	 235958902 ns/op	105279795 B/op	   40208 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00001	  200000	     10029 ns/op	    4238 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00010	   20000	     98837 ns/op	   42373 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00100	    2000	    980030 ns/op	  423742 B/op	     400 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc01000	     200	   9807247 ns/op	 4237422 B/op	    4008 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc10000	      20	  97940008 ns/op	42374220 B/op	   40086 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00001	   20000	     91694 ns/op	   41592 B/op	       4 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00010	    2000	    912857 ns/op	  415586 B/op	      40 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00100	     200	   9101419 ns/op	 4155868 B/op	     407 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc01000	      20	  91316537 ns/op	41558681 B/op	    4071 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc10000	       5	 914826345 ns/op	415588044 B/op	   40714 allocs/op
 
 First Run - Put Only
 

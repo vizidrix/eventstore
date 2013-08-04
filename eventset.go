@@ -102,9 +102,134 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) ([]Event, error) {
 	return events, nil
 }
 
+func (set *EventSet) expandHeaders(oldCount int, newCount int) []Header {
+
+	// Switch to range copy and introduce padded allocations and cap checks
+	headers := make([]Header, oldCount+newCount)
+
+	if oldCount > 0 {
+		oldHeaders := UnsafeCastBytesToHeader(set.headers)
+		oldCount := len(oldHeaders)
+
+		for index := 0; index < oldCount; index++ {
+			headers[index] = oldHeaders[index]
+		}
+	}
+
+	return headers
+}
+
+func (set *EventSet) copyHeaders(oldCount int, newCount int, headers []Header, events ...Event) (int, error) {
+	newSize := 0
+	// Populate the header for each event
+	for i := 0; i < newCount; i++ {
+		size := len(events[i].Data)
+		// Enforce 2 byte max length in header
+		if size > int(MaxUint16) {
+			return 0, errors.New("Event data too large")
+		}
+		newSize += size
+		headers[oldCount+i].length = uint16(len(events[i].Data))
+		headers[oldCount+i].eventType = events[i].EventType
+		headers[oldCount+i].crc = MakeCRC(events[i].Data)
+	}
+
+	return newSize, nil
+}
+
+func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {
+	/*
+		currentCapacity := cap(set.data)
+		minCapacity := currentSize + newSize
+		var data []byte
+		if minCapacity < currentCapacity {
+			data = data[0:minCapacity]
+		} else {
+			extendedCapacity := minCapacity + ((minCapacity * 100) / 4)
+			if extendedCapacity < 4096 {
+				extendedCapacity = 4096
+			}
+			data = make([]byte, extendedCapacity)
+		}
+	*/
+	/*
+		size := currentSize + newSize
+		raw := new([1024 * 1024]byte)
+		data := raw[0:size]
+	*/
+	data := make([]byte, currentSize+newSize)
+
+	copyCurrent(data, set.data)
+	copyNew(len(set.data), data, events...)
+
+	/*
+		index := 0
+
+		// Fill from existing data
+		for index = 0; index < currentSize; index++ {
+			data[index] = set.data[index]
+		}
+		// Fill from new event data set(s)
+		//for i := 0; i < newCount; i++ {
+		for i := 0; i < len(events); i++ {
+			for j := 0; j < len(events[i].Data); j++ {
+				data[index] = events[i].Data[j]
+				index++
+			}
+		}
+	*/
+
+	return data
+}
+
+func copyCurrent(data []byte, current []byte) {
+	for i := 0; i < len(current); i++ {
+		data[i] = current[i]
+	}
+}
+
+func copyNew(offset int, data []byte, events ...Event) {
+	for _, event := range events {
+		for j := range event.Data {
+			data[offset+j] = event.Data[j]
+		}
+		offset += len(event.Data)
+	}
+	/*
+		for i := 0; i < len(events); i++ {
+			event := events[i]
+			for j := 0; j < len(events[i].Data); j++ {
+				data[offset+j] = event.Data[j]
+			}
+			offset += len(event.Data)
+		}
+	*/
+}
+
 func (set *EventSet) Put(events ...Event) (*EventSet, error) {
+	oldCount := len(set.headers) / 8
+	newCount := len(events)
+	headers := set.expandHeaders(oldCount, newCount)
+	currentSize := len(set.data)
+	newSize, err := set.copyHeaders(oldCount, newCount, headers, events...)
+	if err != nil {
+		return nil, err
+	}
+
+	//index := 0
+	data := set.expandAndCopyData(currentSize, newSize, events...)
+
+	return &EventSet{
+		headers: UnsafeCastHeaderToBytes(headers),
+		data:    data,
+	}, nil
+}
+
+func (set *EventSet) PutV2(events ...Event) (*EventSet, error) {
 	newCount := len(events)
 	oldCount := len(set.headers) / 8
+
+	// Switch to range copy and introduce padded allocations and cap checks
 	headers := make([]Header, oldCount+newCount)
 
 	index := 0
