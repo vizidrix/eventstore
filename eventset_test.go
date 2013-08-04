@@ -163,4 +163,90 @@ func Test_Should_retrieve_from_multiple_puts(t *testing.T) {
 	// Assert
 	IsNil(t, err, "Should not have failed Get")
 	AreEqual(t, 6, len(events), "Should have brought back all records")
+	AreEqual(t, uint16(2), events[1].EventType, "Should have retained initial headers")
+	AreEqual(t, uint16(5), events[4].EventType, "Should have appended additional headers")
 }
+
+/*
+func (set *EventSet) PutV2(events ...Event) (*EventSet, error) {
+	steps := 2 // Parallel Step Count
+	signal := make(chan struct{}, steps)
+	for i := 0; i < steps; i++ {
+		signal <- struct{}{}
+	}
+	errorChan := make(chan error)
+
+	newCount := len(events)
+	oldCount := len(set.headers) / 8
+	headers := make([]Header, oldCount+newCount)
+	var data []byte
+
+	go func() {
+		if oldCount > 0 {
+			// Copy over the existing headers
+			oldHeaders := UnsafeCastBytesToHeader(set.headers)
+			headers = make([]Header, oldCount+newCount)
+			for index := 0; index < oldCount; index++ {
+				headers[index] = oldHeaders[index]
+			}
+		}
+		<-signal
+	}()
+
+	/
+		currentSize := len(set.data)
+		newSize := 0
+		index := 0
+	/
+
+	go func() {
+		newSize := 0
+		// Populate the header for each event
+		for i := 0; i < newCount; i++ {
+			size := len(events[i].Data)
+			// Enforce 2 byte max length in header
+			if size > int(MaxUint16) {
+				//return nil, errors.New("Event data too large")
+				errorChan <- errors.New("Event data too large")
+			}
+			newSize += size
+			headers[oldCount+i].length = uint16(len(events[i].Data))
+			headers[oldCount+i].eventType = events[i].EventType
+			headers[oldCount+i].crc = MakeCRC(events[i].Data)
+		}
+
+		//index := 0
+		currentSize := len(set.data)
+		data = make([]byte, currentSize+newSize)
+
+		// Fill from existing data
+		for i := 0; i < currentSize; i++ {
+			data[i] = set.data[i]
+		}
+		// Fill from new event data set(s)
+		for i := 0; i < newCount; i++ {
+			for j := 0; j < len(events[i].Data); j++ {
+				data[currentSize+i] = events[i].Data[j]
+			}
+		}
+		<-signal
+	}()
+
+	for i := 0; i < steps; i++ {
+		select {
+		case <-signal:
+			{
+			}
+		case err := <-errorChan:
+			{
+				return nil, err
+			}
+		}
+	}
+
+	return &EventSet{
+		headers: UnsafeCastHeaderToBytes(headers),
+		data:    data,
+	}, nil
+}
+*/

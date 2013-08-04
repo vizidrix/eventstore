@@ -22,3 +22,7 @@ _testmain.go
 *.exe
 
 .DS_Store
+
+*.out
+
+*.test

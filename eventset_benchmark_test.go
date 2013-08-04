@@ -43,19 +43,20 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 			gcTimer = 0
 		}
 
-		//b.StartTimer()
+		b.StartTimer()
 
 		for index := 0; index < batchCount; index++ {
-			b.StartTimer()
+			//b.StartTimer()
 			eventSet.Put(batch...)
-			b.StopTimer()
+			//b.StopTimer()
 
 			//b.StartTimer()
 			eventSet.Get()
 			//b.StopTimer()
 		}
 
-		//b.StopTimer()
+		b.StopTimer()
+
 	}
 }
 
