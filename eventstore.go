@@ -37,6 +37,11 @@ const (
 	MinInt64  = -(MaxInt - 1)
 )
 
+// http://graphics.stanford.edu/~seander/bithacks.html
+//func PowerOf2(value uint64) bool {
+//	return value && !(value & (value - 1))
+//}
+
 type EventReader interface {
 	Get() (*EventSet, error)
 	GetSlice(startIndex int, endIndex int) (*EventSet, error)
