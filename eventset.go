@@ -8,6 +8,7 @@ import (
 	//"io"
 	"log"
 	"reflect"
+	//"runtime"
 	"unsafe"
 	//"math/rand"
 	//"os"
@@ -22,8 +23,11 @@ func eventset_ignore() {
 	log.Printf(fmt.Sprintf(""))
 }
 
+var table *crc32.Table = crc32.MakeTable(crc32.Castagnoli)
+
 func MakeCRC(data []byte) uint32 {
-	return crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))
+	//return crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))
+	return crc32.Checksum(data, table)
 }
 
 type Header struct {
@@ -102,121 +106,50 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) ([]Event, error) {
 	return events, nil
 }
 
-func (set *EventSet) expandHeaders(oldCount int, newCount int) []Header {
+func (set *EventSet) expandAndCopyHeaders(oldCount int, newCount int, events ...Event) (int, []Header, error) {
 
 	// Switch to range copy and introduce padded allocations and cap checks
 	headers := make([]Header, oldCount+newCount)
 
 	if oldCount > 0 {
-		oldHeaders := UnsafeCastBytesToHeader(set.headers)
-		oldCount := len(oldHeaders)
-
-		for index := 0; index < oldCount; index++ {
-			headers[index] = oldHeaders[index]
-		}
+		copy(headers, UnsafeCastBytesToHeader(set.headers))
 	}
-
-	return headers
-}
-
-func (set *EventSet) copyHeaders(oldCount int, newCount int, headers []Header, events ...Event) (int, error) {
 	newSize := 0
-	// Populate the header for each event
-	for i := 0; i < newCount; i++ {
+	maxSize := int(MaxUint16)
+	for i := 0; i < len(events); i++ {
 		size := len(events[i].Data)
-		// Enforce 2 byte max length in header
-		if size > int(MaxUint16) {
-			return 0, errors.New("Event data too large")
+		if size > maxSize {
+			return 0, nil, errors.New("Event data too large")
 		}
 		newSize += size
-		headers[oldCount+i].length = uint16(len(events[i].Data))
+		headers[oldCount+i].length = uint16(size)
 		headers[oldCount+i].eventType = events[i].EventType
 		headers[oldCount+i].crc = MakeCRC(events[i].Data)
 	}
-
-	return newSize, nil
+	return newSize, headers, nil
 }
 
 func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {
-	/*
-		currentCapacity := cap(set.data)
-		minCapacity := currentSize + newSize
-		var data []byte
-		if minCapacity < currentCapacity {
-			data = data[0:minCapacity]
-		} else {
-			extendedCapacity := minCapacity + ((minCapacity * 100) / 4)
-			if extendedCapacity < 4096 {
-				extendedCapacity = 4096
-			}
-			data = make([]byte, extendedCapacity)
-		}
-	*/
-	/*
-		size := currentSize + newSize
-		raw := new([1024 * 1024]byte)
-		data := raw[0:size]
-	*/
-	data := make([]byte, currentSize+newSize)
+	size := currentSize + newSize
+	//capacity := size | 0xF
 
-	copyCurrent(data, set.data)
-	copyNew(len(set.data), data, events...)
-
-	/*
-		index := 0
-
-		// Fill from existing data
-		for index = 0; index < currentSize; index++ {
-			data[index] = set.data[index]
-		}
-		// Fill from new event data set(s)
-		//for i := 0; i < newCount; i++ {
-		for i := 0; i < len(events); i++ {
-			for j := 0; j < len(events[i].Data); j++ {
-				data[index] = events[i].Data[j]
-				index++
-			}
-		}
-	*/
-
+	data := make([]byte, size, size)
+	copy(data, set.data)
+	for i := range events {
+		copy(data[currentSize:], events[i].Data)
+		currentSize += len(events[i].Data)
+	}
 	return data
-}
-
-func copyCurrent(data []byte, current []byte) {
-	for i := 0; i < len(current); i++ {
-		data[i] = current[i]
-	}
-}
-
-func copyNew(offset int, data []byte, events ...Event) {
-	for _, event := range events {
-		for j := range event.Data {
-			data[offset+j] = event.Data[j]
-		}
-		offset += len(event.Data)
-	}
-	/*
-		for i := 0; i < len(events); i++ {
-			event := events[i]
-			for j := 0; j < len(events[i].Data); j++ {
-				data[offset+j] = event.Data[j]
-			}
-			offset += len(event.Data)
-		}
-	*/
 }
 
 func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 	oldCount := len(set.headers) / 8
 	newCount := len(events)
-	headers := set.expandHeaders(oldCount, newCount)
+	newSize, headers, err := set.expandAndCopyHeaders(oldCount, newCount, events...)
 	currentSize := len(set.data)
-	newSize, err := set.copyHeaders(oldCount, newCount, headers, events...)
 	if err != nil {
 		return nil, err
 	}
-
-	//index := 0
 	data := set.expandAndCopyData(currentSize, newSize, events...)
 
 	return &EventSet{
@@ -225,6 +158,7 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 	}, nil
 }
 
+/*
 func (set *EventSet) PutV2(events ...Event) (*EventSet, error) {
 	newCount := len(events)
 	oldCount := len(set.headers) / 8
@@ -277,6 +211,7 @@ func (set *EventSet) PutV2(events ...Event) (*EventSet, error) {
 		data:    data,
 	}, nil
 }
+*/
 
 func (set *EventSet) Count() int {
 	return len(set.headers) / 8
@@ -321,37 +256,46 @@ func MaskAndShiftInt64ToUint16(data []uint64, mask uint64, shift int) []uint16 {
 }
 */
 
-func UnsafeCastBytesToHeader(data []byte) []Header {
-	length := len(data) / 8 // Bytes / Header struct
-	headers := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&data[0])),
+func UnsafeCastBytesToHeader(source []byte) []Header {
+	length := len(source) / 8 // Bytes / Header struct
+	result := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&source[0])),
 		Len:  length,
 		Cap:  length,
 	}
-	return *(*[]Header)(unsafe.Pointer(&headers))
+	return *(*[]Header)(unsafe.Pointer(&result))
 }
 
-func UnsafeCastHeaderToBytes(headers []Header) []byte {
-	length := len(headers) * 8 // Bytes / Header struct
-	data := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&headers[0])),
+func UnsafeCastHeaderToBytes(source []Header) []byte {
+	length := len(source) * 8 // Bytes / Header struct
+	result := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&source[0])),
 		Len:  length,
 		Cap:  length,
 	}
-	return *(*[]byte)(unsafe.Pointer(&data))
+	return *(*[]byte)(unsafe.Pointer(&result))
 }
 
-/*
-func UnsafeCastBytesToUint64(data []byte) []uint64 {
-	length := len(data) / 8 // Bytes / int64
-	header := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&data[0])),
-		Len:  lenth,
+func UnsafeCastBytesToUint64(source []byte) []uint64 {
+	length := len(source) / 8 // Bytes / uint64
+	result := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&source[0])),
+		Len:  length,
 		Cap:  length,
 	}
-	return *(*[]uint64)(unsafe.Pointer(&header))
+	return *(*[]uint64)(unsafe.Pointer(&result))
 }
-*/
+
+func UnsafeCastUint64ToBytes(source []uint64) []byte {
+	length := len(source) * 8 // Bytes / uint64
+	result := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&source[0])),
+		Len:  length,
+		Cap:  length,
+	}
+	return *(*[]byte)(unsafe.Pointer(&result))
+}
+
 /*
 func UnsafeCastInt32sToBytes(ints []int32) []byte {
 	length := len(ints) * 4
