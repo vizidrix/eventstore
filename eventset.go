@@ -115,52 +115,89 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) ([]Event, error) {
 }
 
 func (set *EventSet) Put(events ...Event) (*EventSet, error) {
-	oldCount := len(set.headers) / 8
-	newCount := len(events)
-	newSize, headers, err := set.expandAndCopyHeaders(oldCount, newCount, events...)
-	currentSize := len(set.data)
-	if err != nil {
-		return nil, err
+
+	prevHeaderSize := len(set.headers)
+	prevHeaderCap := cap(set.headers)
+	newHeaderCount := len(events)
+
+	reqHeaderSize := prevHeaderSize + (newHeaderCount << 3) // << 3 = * 8
+	prevHeaderCount := prevHeaderSize >> 3
+	newHeaderSize := newHeaderCount << 3
+
+	var headers []Header
+	if reqHeaderSize < prevHeaderCap {
+		data := set.headers[0 : prevHeaderSize+newHeaderSize]
+		//data := set.headers[0 : (prevHeaderCount+newHeaderCount)*8]
+		headers = UnsafeCastBytesToHeader(data)
+	} else {
+		headers = make([]Header, reqHeaderSize>>3, reqHeaderSize>>2)
+		if prevHeaderSize > 0 { // Cannot cast empty byte[]
+			copy(headers, UnsafeCastBytesToHeader(set.headers))
+		}
 	}
-	data := set.expandAndCopyData(currentSize, newSize, events...)
+
+	newDataSize := 0
+	maxDataSize := int(MaxUint16)
+	for i := range events {
+		eventSize := len(events[i].Data)
+		if eventSize > maxDataSize {
+			return nil, errors.New("Event data too large")
+		}
+		newDataSize += eventSize
+		headers[prevHeaderCount+i].length = uint16(eventSize)
+		headers[prevHeaderCount+i].eventType = events[i].EventType
+		headers[prevHeaderCount+i].crc = MakeCRC(events[i].Data)
+	}
+
+	//oldCount := len(set.headers) / 8
+	//newCount := len(events)
+	//newSize, headers, err := set.expandAndCopyHeaders(events...)
+	currentSize := len(set.data)
+	/*if err != nil {
+		return nil, err
+	}*/
+	data := set.expandAndCopyData(currentSize, newDataSize, events...)
 	return &EventSet{
 		headers: UnsafeCastHeaderToBytes(headers),
 		data:    data,
 	}, nil
 }
 
-func (set *EventSet) expandAndCopyHeaders(oldCount int, newCount int, events ...Event) (int, []Header, error) {
+func (set *EventSet) expandAndCopyHeaders(events ...Event) (int, []Header, error) {
+	prevHeaderSize := len(set.headers)
+	prevHeaderCap := cap(set.headers)
+	newHeaderCount := len(events)
 
-	dataSize := len(set.headers)
-	dataCap := cap(set.headers)
-	requiredSize := dataSize + (newCount * 8)
+	reqHeaderSize := prevHeaderSize + (newHeaderCount << 3) // << 3 = * 8
+	prevHeaderCount := prevHeaderSize >> 3
+	newHeaderSize := newHeaderCount << 3
 
 	var headers []Header
-	if requiredSize < dataCap {
-		data := set.headers[0 : (oldCount+newCount)*8]
-		//log.Printf("set.headers[ %d, %d ]: % x", len(set.headers), cap(set.headers), set.headers)
+	if reqHeaderSize < prevHeaderCap {
+		data := set.headers[0 : prevHeaderSize+newHeaderSize]
+		//data := set.headers[0 : (prevHeaderCount+newHeaderCount)*8]
 		headers = UnsafeCastBytesToHeader(data)
-		//log.Printf("headers[ %d, %d ]: % x", len(headers), cap(headers), headers)
 	} else {
-		headers = make([]Header, requiredSize>>3, requiredSize>>2)
-		if dataSize > 0 {
+		headers = make([]Header, reqHeaderSize>>3, reqHeaderSize>>2)
+		if prevHeaderSize > 0 { // Cannot cast empty byte[]
 			copy(headers, UnsafeCastBytesToHeader(set.headers))
 		}
 	}
 
-	newSize := 0
-	maxSize := int(MaxUint16)
-	for i := 0; i < len(events); i++ {
-		size := len(events[i].Data)
-		if size > maxSize {
+	newDataSize := 0
+	maxDataSize := int(MaxUint16)
+	for i := range events {
+		eventSize := len(events[i].Data)
+		if eventSize > maxDataSize {
 			return 0, nil, errors.New("Event data too large")
 		}
-		newSize += size
-		headers[oldCount+i].length = uint16(size)
-		headers[oldCount+i].eventType = events[i].EventType
-		headers[oldCount+i].crc = MakeCRC(events[i].Data)
+		newDataSize += eventSize
+		headers[prevHeaderCount+i].length = uint16(eventSize)
+		headers[prevHeaderCount+i].eventType = events[i].EventType
+		headers[prevHeaderCount+i].crc = MakeCRC(events[i].Data)
 	}
-	return newSize, headers, nil
+
+	return newDataSize, headers, nil
 }
 
 func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {
