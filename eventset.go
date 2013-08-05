@@ -118,6 +118,8 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 
 	prevHeaderSize := len(set.headers)
 	prevHeaderCap := cap(set.headers)
+	prevDataSize := len(set.data)
+	prevDataCap := cap(set.data)
 	newHeaderCount := len(events)
 
 	reqHeaderSize := prevHeaderSize + (newHeaderCount << 3) // << 3 = * 8
@@ -127,7 +129,6 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 	var headers []Header
 	if reqHeaderSize < prevHeaderCap {
 		data := set.headers[0 : prevHeaderSize+newHeaderSize]
-		//data := set.headers[0 : (prevHeaderCount+newHeaderCount)*8]
 		headers = UnsafeCastBytesToHeader(data)
 	} else {
 		headers = make([]Header, reqHeaderSize>>3, reqHeaderSize>>2)
@@ -149,55 +150,32 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 		headers[prevHeaderCount+i].crc = MakeCRC(events[i].Data)
 	}
 
-	//oldCount := len(set.headers) / 8
-	//newCount := len(events)
-	//newSize, headers, err := set.expandAndCopyHeaders(events...)
-	currentSize := len(set.data)
-	/*if err != nil {
-		return nil, err
-	}*/
-	data := set.expandAndCopyData(currentSize, newDataSize, events...)
+	reqDataSize := prevDataSize + newDataSize
+
+	var data []byte
+	if reqDataSize < prevDataCap { // Simple expand into existing cap
+		data = set.data[0:reqDataSize]
+	} else { // Magic expando sauce needed
+		// Ensures that the cap is 16 byte alligned... 0x3F would be 8 byte alligned
+		// Account for at least 2 similarly sized, 16 byte alligned adds
+		reqDataCap := (reqDataSize | 0x7F) + ((newDataSize << 1) | 0x7F)
+		//dataArray := new([1024 * 1024]byte)
+		//data = dataArray[0:requiredSize]
+		data = make([]byte, reqDataSize, reqDataCap)
+		copy(data, set.data)
+	}
+	for i := range events {
+		copy(data[prevDataSize:], events[i].Data)
+		prevDataSize += len(events[i].Data)
+	}
+
+	//currentSize := len(set.data)
+
+	//data := set.expandAndCopyData(currentSize, newDataSize, events...)
 	return &EventSet{
 		headers: UnsafeCastHeaderToBytes(headers),
 		data:    data,
 	}, nil
-}
-
-func (set *EventSet) expandAndCopyHeaders(events ...Event) (int, []Header, error) {
-	prevHeaderSize := len(set.headers)
-	prevHeaderCap := cap(set.headers)
-	newHeaderCount := len(events)
-
-	reqHeaderSize := prevHeaderSize + (newHeaderCount << 3) // << 3 = * 8
-	prevHeaderCount := prevHeaderSize >> 3
-	newHeaderSize := newHeaderCount << 3
-
-	var headers []Header
-	if reqHeaderSize < prevHeaderCap {
-		data := set.headers[0 : prevHeaderSize+newHeaderSize]
-		//data := set.headers[0 : (prevHeaderCount+newHeaderCount)*8]
-		headers = UnsafeCastBytesToHeader(data)
-	} else {
-		headers = make([]Header, reqHeaderSize>>3, reqHeaderSize>>2)
-		if prevHeaderSize > 0 { // Cannot cast empty byte[]
-			copy(headers, UnsafeCastBytesToHeader(set.headers))
-		}
-	}
-
-	newDataSize := 0
-	maxDataSize := int(MaxUint16)
-	for i := range events {
-		eventSize := len(events[i].Data)
-		if eventSize > maxDataSize {
-			return 0, nil, errors.New("Event data too large")
-		}
-		newDataSize += eventSize
-		headers[prevHeaderCount+i].length = uint16(eventSize)
-		headers[prevHeaderCount+i].eventType = events[i].EventType
-		headers[prevHeaderCount+i].crc = MakeCRC(events[i].Data)
-	}
-
-	return newDataSize, headers, nil
 }
 
 func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {

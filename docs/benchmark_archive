@@ -1,3 +1,41 @@
+ReMerged the Put logic
+
+Benchmark_EventSet_PutGet_10byte_b01xc00001	10000000	       140 ns/op	      50 B/op	       1 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00010	 1000000	      1388 ns/op	     504 B/op	      10 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc00100	  100000	     13881 ns/op	    5045 B/op	     101 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc01000	   10000	    138457 ns/op	   50464 B/op	    1011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b01xc10000	    1000	   1382294 ns/op	  504642 B/op	   10115 allocs/op
+
+Benchmark_EventSet_PutGet_10byte_b10xc00001	 5000000	       710 ns/op	     212 B/op	       2 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00010	  500000	      7135 ns/op	    2123 B/op	      20 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc00100	   50000	     71629 ns/op	   21240 B/op	     201 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc01000	    5000	    710328 ns/op	  212409 B/op	    2011 allocs/op
+Benchmark_EventSet_PutGet_10byte_b10xc10000	     500	   7207424 ns/op	 2124092 B/op	   20110 allocs/op
+
+Benchmark_EventSet_PutGet_1024byte_b01xc00001	10000000	       265 ns/op	      50 B/op	       1 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00010	 1000000	      2658 ns/op	     504 B/op	      10 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc00100	  100000	     26746 ns/op	    5045 B/op	     101 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc01000	   10000	    268317 ns/op	   50464 B/op	    1011 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b01xc10000	    1000	   2633641 ns/op	  504642 B/op	   10115 allocs/op
+
+Benchmark_EventSet_PutGet_1024byte_b10xc00001	  500000	      6707 ns/op	   33316 B/op	       3 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00010	   50000	     67279 ns/op	  333172 B/op	      30 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc00100	    5000	    667612 ns/op	 3331732 B/op	     305 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc01000	     500	   6705198 ns/op	33317323 B/op	    3055 allocs/op
+Benchmark_EventSet_PutGet_1024byte_b10xc10000	      50	  67297959 ns/op	333173237 B/op	   30555 allocs/op
+
+Benchmark_EventSet_PutGet_4096byte_b01xc00001	 1000000	      2976 ns/op	   14293 B/op	       2 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00010	  100000	     29459 ns/op	  142940 B/op	      20 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc00100	   10000	    298324 ns/op	 1429405 B/op	     202 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc01000	    1000	   2981791 ns/op	14294053 B/op	    2027 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b01xc10000	      50	  29758012 ns/op	142940477 B/op	   20270 allocs/op
+
+Benchmark_EventSet_PutGet_4096byte_b10xc00001	  100000	     19895 ns/op	  128207 B/op	       3 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00010	   10000	    199508 ns/op	 1282079 B/op	      31 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc00100	    1000	   1990337 ns/op	12820802 B/op	     316 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc01000	     100	  19923369 ns/op	128208020 B/op	    3166 allocs/op
+Benchmark_EventSet_PutGet_4096byte_b10xc10000	      10	 201144287 ns/op	1282080204 B/op	   31666 allocs/op
+
 Reduced data preallocate to 4k which means less memory waste per set but also much worse perf on bigger events
 
 Benchmark_EventSet_PutGet_10byte_b01xc00001	10000000	       147 ns/op	      50 B/op	       1 allocs/op
