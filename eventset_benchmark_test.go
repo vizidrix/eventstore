@@ -37,6 +37,7 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 	b.ResetTimer()
 	//b.StopTimer()
 	for i := 0; i < b.N; i++ {
+		//b.StopTimer()
 		gcTimer++
 		if gcTimer == gcTime {
 			b.StopTimer()
@@ -46,7 +47,8 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 		}
 
 		//b.StartTimer()
-
+		//eventSet := goes.NewEmptyEventSet()
+		//b.StartTimer()
 		for index := 0; index < batchCount; index++ {
 			//b.StartTimer()
 			eventSet.Put(batch...)
@@ -59,6 +61,44 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 
 	}
 }
+
+/*
+func Benchmark_Copy_byte(b *testing.B) {
+	size := 64 * 8
+	sourceData := make([]byte, size)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		//destSlice := make([]byte, size)
+		destSlice := new([64 * 8]byte)
+		copy(destSlice[:], sourceData)
+	}
+}
+
+func Benchmark_Copy_uint64(b *testing.B) {
+	size := 64
+	sourceData := make([]uint64, size)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		//destSlice := make([]uint64, size)
+		destSlice := new([64]uint64)
+		copy(destSlice[:], sourceData)
+	}
+}
+
+func Benchmark_Copy_complex128(b *testing.B) {
+	size := 32
+	sourceData := make([]complex128, size)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		//destSlice := make([]uint64, size)
+		destSlice := new([64]complex128)
+		copy(destSlice[:], sourceData)
+	}
+}
+*/
 
 func Benchmark_EventSet_PutGet_10byte_b01xc00001(b *testing.B) {
 	Run_PutGet(b, 10, 1, 1)

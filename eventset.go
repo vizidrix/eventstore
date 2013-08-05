@@ -1,6 +1,10 @@
 package eventstore
 
+/*
+#include <stdlib.h>
+*/
 import (
+	//"C"
 	"errors"
 	//"bufio"
 	//"bytes"
@@ -26,7 +30,6 @@ func eventset_ignore() {
 var table *crc32.Table = crc32.MakeTable(crc32.Castagnoli)
 
 func MakeCRC(data []byte) uint32 {
-	//return crc32.Checksum(data, crc32.MakeTable(crc32.Castagnoli))
 	return crc32.Checksum(data, table)
 }
 
@@ -36,20 +39,25 @@ type Header struct {
 	crc       uint32
 }
 
-type EventSet struct {
-	headers []byte
-	data    []byte
-}
-
 type Event struct {
 	EventType uint16
 	Data      []byte
 }
 
+type EventSet struct {
+	headers []byte
+	data    []byte
+}
+
+const (
+	HEADER_SLICE_SIZE = 64   // Room for 8 appends before expand
+	DATA_SLICE_SIZE   = 4096 //* 2048
+)
+
 func NewEmptyEventSet() *EventSet {
 	return &EventSet{
-		headers: make([]byte, 0, 4016), // Added cap
-		data:    make([]byte, 0, 4016),
+		headers: make([]byte, 0, HEADER_SLICE_SIZE),
+		data:    make([]byte, 0, DATA_SLICE_SIZE),
 	}
 }
 
@@ -115,7 +123,6 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 		return nil, err
 	}
 	data := set.expandAndCopyData(currentSize, newSize, events...)
-
 	return &EventSet{
 		headers: UnsafeCastHeaderToBytes(headers),
 		data:    data,
@@ -124,12 +131,23 @@ func (set *EventSet) Put(events ...Event) (*EventSet, error) {
 
 func (set *EventSet) expandAndCopyHeaders(oldCount int, newCount int, events ...Event) (int, []Header, error) {
 
-	// Switch to range copy and introduce padded allocations and cap checks
-	headers := make([]Header, oldCount+newCount)
+	dataSize := len(set.headers)
+	dataCap := cap(set.headers)
+	requiredSize := dataSize + (newCount * 8)
 
-	if oldCount > 0 {
-		copy(headers, UnsafeCastBytesToHeader(set.headers))
+	var headers []Header
+	if requiredSize < dataCap {
+		data := set.headers[0 : (oldCount+newCount)*8]
+		//log.Printf("set.headers[ %d, %d ]: % x", len(set.headers), cap(set.headers), set.headers)
+		headers = UnsafeCastBytesToHeader(data)
+		//log.Printf("headers[ %d, %d ]: % x", len(headers), cap(headers), headers)
+	} else {
+		headers = make([]Header, requiredSize>>3, requiredSize>>2)
+		if dataSize > 0 {
+			copy(headers, UnsafeCastBytesToHeader(set.headers))
+		}
 	}
+
 	newSize := 0
 	maxSize := int(MaxUint16)
 	for i := 0; i < len(events); i++ {
@@ -146,11 +164,56 @@ func (set *EventSet) expandAndCopyHeaders(oldCount int, newCount int, events ...
 }
 
 func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {
-	size := currentSize + newSize
-	//capacity := size | 0xF
 
-	data := make([]byte, size, size)
-	copy(data, set.data)
+	dataSize := len(set.data)          // Correct actually consumed size
+	dataCap := cap(set.data)           // Available in backing array
+	requiredSize := dataSize + newSize // Number of bytes needed
+	var data []byte
+	if requiredSize < dataCap { // Simple expand into existing cap
+		data = set.data[0:requiredSize]
+	} else { // Magic expando sauce needed
+		// Ensures that the cap is 16 byte alligned... 0x3F would be 8 byte alligned
+		// Account for at least 2 similarly sized, 16 byte alligned adds
+		requiredCap := (requiredSize | 0x7F) + ((newSize << 1) | 0x7F)
+		//dataArray := new([1024 * 1024]byte)
+		//data = dataArray[0:requiredSize]
+		data = make([]byte, requiredSize, requiredCap)
+		copy(data, set.data)
+		/*
+			if dataSize <= 64 { // At very small sizes it's fater to do a simply loop copy
+				for i := range set.data {
+					data[i] = set.data[i]
+				}
+			} else {
+				if dataSize <= 1024 { // Below a certain threshold it's faster to do a simple byte copy
+					copy(data, set.data)
+				} else { // Working on optimized method of copy for 16 byte alligned data
+					copy(data, set.data)
+					//copy(UnsafeCastBytesToUint64(data), UnsafeCastBytesToUint64(set.data))
+				}
+			}
+		*/
+	}
+	// NEED TO TEST VALIDITY OF BOUNDARIES DURING COPY!!  DOES ENDIAN MATTER???
+	/*
+		size := currentSize + newSize
+		// Nearest 4k chunk plus the slice size
+		capacity := (size | 0xFFF) + DATA_SLICE_SIZE // currentSize + (newSize << 8)
+		//capacity := size | 0xF
+		var data []byte
+	*/
+	/*if currentSize == 0 {
+		capacity := size > 4096 ? size : 4096
+		data = make([]byte, size, (size+1024) * 2)
+	}*/
+	/*
+		if cap(set.data) < size { // Need to expand and copy
+			data = make([]byte, size, capacity)
+			copy(data, set.data)
+		} else { // Use available capacity
+			data = set.data[0:size]
+		}
+	*/
 	for i := range events {
 		copy(data[currentSize:], events[i].Data)
 		currentSize += len(events[i].Data)
@@ -163,21 +226,24 @@ func (set *EventSet) Count() int {
 }
 
 func UnsafeCastBytesToHeader(source []byte) []Header {
+	//reflect.Array()
 	length := len(source) / 8 // Bytes / Header struct
+	capacity := cap(source) / 8
 	result := reflect.SliceHeader{
 		Data: uintptr(unsafe.Pointer(&source[0])),
 		Len:  length,
-		Cap:  length,
+		Cap:  capacity,
 	}
 	return *(*[]Header)(unsafe.Pointer(&result))
 }
 
 func UnsafeCastHeaderToBytes(source []Header) []byte {
 	length := len(source) * 8 // Bytes / Header struct
+	capacity := cap(source) * 8
 	result := reflect.SliceHeader{
 		Data: uintptr(unsafe.Pointer(&source[0])),
 		Len:  length,
-		Cap:  length,
+		Cap:  capacity,
 	}
 	return *(*[]byte)(unsafe.Pointer(&result))
 }

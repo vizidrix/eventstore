@@ -4,8 +4,13 @@ import (
 	"fmt"
 	goes "github.com/vizidrix/eventstore"
 	. "github.com/vizidrix/eventstore/test_utils"
+	"log"
 	"testing"
 )
+
+func ignore_eventset_test() {
+	log.Printf(fmt.Sprintf(""))
+}
 
 func MakeByteSlice(size int) []byte {
 	result := make([]byte, size)
@@ -167,86 +172,32 @@ func Test_Should_retrieve_from_multiple_puts(t *testing.T) {
 	AreEqual(t, uint16(5), events[4].EventType, "Should have appended additional headers")
 }
 
-/*
-func (set *EventSet) PutV2(events ...Event) (*EventSet, error) {
-	steps := 2 // Parallel Step Count
-	signal := make(chan struct{}, steps)
-	for i := 0; i < steps; i++ {
-		signal <- struct{}{}
-	}
-	errorChan := make(chan error)
+func Test_Should_return_err_if_event_is_too_large(t *testing.T) {
+	// Arrange
+	eventSet := goes.NewEmptyEventSet()
 
-	newCount := len(events)
-	oldCount := len(set.headers) / 8
-	headers := make([]Header, oldCount+newCount)
-	var data []byte
+	// Act
+	eventSet, err := eventSet.Put([]goes.Event{
+		{1, MakeByteSlice(10000)},
+		{2, MakeByteSlice(12000)},
+		{3, MakeByteSlice(140000)}, // make it 1400000
+	}...)
 
-	go func() {
-		if oldCount > 0 {
-			// Copy over the existing headers
-			oldHeaders := UnsafeCastBytesToHeader(set.headers)
-			headers = make([]Header, oldCount+newCount)
-			for index := 0; index < oldCount; index++ {
-				headers[index] = oldHeaders[index]
-			}
-		}
-		<-signal
-	}()
-
-	/
-		currentSize := len(set.data)
-		newSize := 0
-		index := 0
-	/
-
-	go func() {
-		newSize := 0
-		// Populate the header for each event
-		for i := 0; i < newCount; i++ {
-			size := len(events[i].Data)
-			// Enforce 2 byte max length in header
-			if size > int(MaxUint16) {
-				//return nil, errors.New("Event data too large")
-				errorChan <- errors.New("Event data too large")
-			}
-			newSize += size
-			headers[oldCount+i].length = uint16(len(events[i].Data))
-			headers[oldCount+i].eventType = events[i].EventType
-			headers[oldCount+i].crc = MakeCRC(events[i].Data)
-		}
-
-		//index := 0
-		currentSize := len(set.data)
-		data = make([]byte, currentSize+newSize)
-
-		// Fill from existing data
-		for i := 0; i < currentSize; i++ {
-			data[i] = set.data[i]
-		}
-		// Fill from new event data set(s)
-		for i := 0; i < newCount; i++ {
-			for j := 0; j < len(events[i].Data); j++ {
-				data[currentSize+i] = events[i].Data[j]
-			}
-		}
-		<-signal
-	}()
-
-	for i := 0; i < steps; i++ {
-		select {
-		case <-signal:
-			{
-			}
-		case err := <-errorChan:
-			{
-				return nil, err
-			}
-		}
-	}
-
-	return &EventSet{
-		headers: UnsafeCastHeaderToBytes(headers),
-		data:    data,
-	}, nil
+	// Assert
+	IsNotNil(t, err, "Should have throw event too large error")
 }
-*/
+
+func Test_Should_be_able_to_resize_header_slice(t *testing.T) {
+	// Arrange
+	eventSet := goes.NewEmptyEventSet()
+	events := make([]goes.Event, (goes.HEADER_SLICE_SIZE/8)+1)
+	for i := range events {
+		events[i] = goes.Event{uint16(i), MakeByteSlice(i)}
+	}
+
+	// Act
+	eventSet, _ = eventSet.Put(events...)
+
+	// Assert
+	IsNotNil(t, eventSet, "Should have returned valid event set")
+}
