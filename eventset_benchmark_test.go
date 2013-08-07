@@ -92,30 +92,30 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 		}
 	}
 
-	b.ResetTimer()
-	b.StopTimer()
+	//b.ResetTimer()
+	//b.StopTimer()
 	for i := 0; i < b.N; i++ {
 		//go func() {
 		//b.StopTimer()
 
-		gcTimer++
+		/*gcTimer++
 		if gcTimer == gcTime {
 			b.StopTimer()
 			runtime.GC()
 			b.StartTimer()
 			gcTimer = 0
-		}
+		}*/
 
 		eventSet := goes.NewEmptyEventSet()
-		b.StartTimer()
+		//b.StartTimer()
 
 		for index := 0; index < batchCount; index++ {
-			//eventSet, _ = eventSet.Put(batch...)
-			eventSet.Put(batch...)
+			eventSet, _ = eventSet.Put(batch...)
+			//eventSet.Put(batch...)
 		}
 
-		//eventSet.Get()
-		b.StopTimer()
+		eventSet.Get()
+		//b.StopTimer()
 		//}()
 		//count++
 	}

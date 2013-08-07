@@ -2,25 +2,29 @@ package eventstore
 
 import (
 	"errors"
-	//"bufio"
-	//"bytes"
 	"fmt"
-	//"io"
 	"log"
-	//"math/rand"
-	//"os"
-	//"os"
-	//"encoding/binary"
-	//"strings"
-
-	//"time"
-	//"runtime"
 )
 
 func eventset_ignore() {
 	log.Printf(fmt.Sprintf(""))
 	//runtime.Sto
 }
+
+/*
+
+Header Index - Per Aggregate with Header Record (8 byte) per event
+[ 2 byte		| 2 byte		| 4 byte 	]
+[ Length		| EventType		| CRC		]
+
+Max Len: 		65535
+Max Event Type: 65535
+
+Stride data in 64bit chunks by Blocks() count?
+
+Actual data is Length() long padded to fit chunks?
+
+*/
 
 type Header struct {
 	length    uint16
@@ -65,21 +69,17 @@ func NewEmptyEventSet() *EventSet {
 }
 
 func (set *EventSet) CheckSum() error {
-	//headers := UnsafeCastBytesToHeader(set.headers)
-	//position := 0
 	for index, _ := range set.headers {
-		//crc := MakeCRC(set.data[position : position+int(header.length)])
 		crc := MakeCRC(set.events[index])
 		if crc != set.headers[index].crc {
 			return errors.New("Data appears corrupted")
 		}
-		//position += int(set.headers[index].length)
 	}
 	return nil
 }
 
 func (set *EventSet) Count() int {
-	return len(set.headers) // >> 3
+	return len(set.headers)
 }
 
 func (set *EventSet) LengthAt(index int) uint16 {
@@ -97,48 +97,6 @@ func (set *EventSet) CheckSumAt(index int) uint32 {
 func (set *EventSet) DataAt(index int) []byte {
 	return set.events[index]
 }
-
-/*
-func (set *EventSet) Get() ([]Event, error) {
-	return set.GetSlice(0, MaxInt)
-}
-
-func (set *EventSet) GetSlice(startIndex int, endIndex int) ([]Event, error) {
-	length := len(set.headers) / 8
-	// Validate inputs
-	if startIndex < 0 || startIndex >= endIndex || startIndex > length {
-		return nil, errors.New("Either start or end index is out of range")
-	}
-	// No data so just return empty slice
-	if length == 0 {
-		return make([]Event, 0), nil
-	}
-	// End out of range so move it back
-	if endIndex >= length {
-		endIndex = length - 1
-	}
-	// Figure out how many records to return
-	count := endIndex - startIndex + 1
-	// Look at the headers
-	headers := UnsafeCastBytesToHeader(set.headers)
-	events := make([]Event, count)
-
-	index := 0
-	position := 0
-	for i := 0; i <= endIndex; i++ {
-		if i < startIndex {
-			position += int(headers[i].length)
-			continue // Skip events below start index
-		}
-		events[index].EventType = headers[i].eventType
-		events[index].Data = set.data[position : position+int(headers[i].length)]
-		position += int(headers[i].length)
-
-		index++
-	}
-	return events, nil
-}
-*/
 
 func (set *EventSet) Get() (*EventSet, error) {
 	return set.GetSlice(0, MaxInt)
@@ -159,24 +117,17 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
 		endIndex = headerLength
 	}
 
-	headerData := set.headerData[startIndex<<3 : endIndex<<3]
-	events := set.events[startIndex:endIndex]
 	dataLength := cap(set.eventData)
-	lowerBound := dataLength - cap(events[0])
-	upperBound := dataLength - cap(events[len(events)-1])
-	eventData := set.eventData[lowerBound:upperBound]
-	headers := UnsafeCastBytesToHeader(headerData)
-
+	lowerBound := dataLength - cap(set.events[startIndex])
+	upperBound := dataLength - cap(set.events[endIndex])
 	return &EventSet{
-		headerData: headerData,
-		eventData:  eventData,
+		headerData: set.headerData[startIndex<<3 : endIndex<<3],
+		eventData:  set.eventData[lowerBound:upperBound],
 		headPos:    set.headPos - startIndex,
 		tailPos:    set.tailPos - endIndex,
-		headers:    headers,
-		events:     events,
+		headers:    set.headers[startIndex:endIndex],
+		events:     set.events[startIndex:endIndex],
 	}, nil
-
-	//return eventSet, nil
 }
 
 func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {

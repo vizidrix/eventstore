@@ -37,20 +37,9 @@ func Test_Memory_Should_not_panic_when_range_is_too_long(t *testing.T) {
 	EventStore_Should_not_panic_when_range_is_too_long(t, MemoryUri)
 }
 
-func Test_Memory_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t *testing.T) {
-	EventStore_Should_panic_when_event_length_greater_than_max_in_unchecked_ctor(t, MemoryUri)
-}
-
-func Test_Memory_Should_panic_when_reported_event_length_greater_than_actual_in_unchecked_ctor(t *testing.T) {
-	EventStore_Should_panic_when_reported_event_length_greater_than_actual_in_unchecked_ctor(t, MemoryUri)
-}
-
-func Test_Memory_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t *testing.T) {
-	EventStore_Should_fail_if_write_index_is_not_unique_when_expected_to_be(t, MemoryUri)
-}
-
 /*******************/
 
+/*
 func Benchmark_MemoryES_PutGet_10bytePayload(b *testing.B) {
 	Run_PutGet(b, MemoryUri, "namespace", "kind", 10, 1)
 }
@@ -110,3 +99,4 @@ func Benchmark_MemoryES_PutGet_4087bytePayloads_x1000(b *testing.B) {
 func Benchmark_MemoryES_PutGet_4087bytePayloads_x10000(b *testing.B) {
 	Run_PutGet(b, MemoryUri, "namespace", "kind", 4087, 10000)
 }
+*/

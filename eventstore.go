@@ -13,6 +13,7 @@ import (
 	"encoding/binary"
 	"strings"
 	//"hash/crc32"
+	//"runtime"
 	"time"
 )
 
@@ -48,16 +49,16 @@ type EventReader interface {
 }
 
 type EventWriter interface {
-	Put(eventType uint16, data []byte) error
+	//Put(eventType uint16, data []byte) error
+	Put(newEvents ...Event) (*EventSet, error)
 }
 
 type EventStorer interface {
-	//SyncEventStorer
 	Kind(kind *AggregateKind) KindPartitioner
 }
 
 type KindPartitioner interface {
-	Aggregate(id int64) AggregatePartitioner
+	Id(id uint64) AggregatePartitioner
 }
 
 type AggregatePartitioner interface {
