@@ -1,36 +1,25 @@
 package eventstore
 
-/*
-#include <stdlib.h>
-*/
 import (
-	//"C"
 	"errors"
 	//"bufio"
 	//"bytes"
 	"fmt"
 	//"io"
 	"log"
-	"reflect"
-	//"runtime"
-	"unsafe"
 	//"math/rand"
 	//"os"
 	//"os"
 	//"encoding/binary"
 	//"strings"
-	"hash/crc32"
+
 	//"time"
+	//"runtime"
 )
 
 func eventset_ignore() {
 	log.Printf(fmt.Sprintf(""))
-}
-
-var table *crc32.Table = crc32.MakeTable(crc32.Castagnoli)
-
-func MakeCRC(data []byte) uint32 {
-	return crc32.Checksum(data, table)
+	//runtime.Sto
 }
 
 type Header struct {
@@ -45,35 +34,71 @@ type Event struct {
 }
 
 type EventSet struct {
-	headers []byte
-	data    []byte
+	headerData []byte // Raw header data
+	eventData  []byte // Raw event data
+
+	headPos int // Index of first event in set
+	tailPos int // Index of last event in set
+	//offsets []int // Precalculated map of event locations
+
+	headers []Header // Typed view of header
+	events  [][]byte
 }
 
 const (
 	HEADER_SLICE_SIZE = 64   // Room for 8 appends before expand
 	DATA_SLICE_SIZE   = 4096 //* 2048
+	MAX_EVENT_SIZE    = int(MaxUint16)
 )
 
 func NewEmptyEventSet() *EventSet {
+	headerData := make([]byte, 0, HEADER_SLICE_SIZE)
 	return &EventSet{
-		headers: make([]byte, 0, HEADER_SLICE_SIZE),
-		data:    make([]byte, 0, DATA_SLICE_SIZE),
+		// Initialize primary raw data store
+		headerData: headerData,
+		eventData:  make([]byte, 0, DATA_SLICE_SIZE),
+		headPos:    0,
+		tailPos:    0,
+		headers:    UnsafeCastBytesToHeader(headerData),
+		events:     make([][]byte, 0, HEADER_SLICE_SIZE),
 	}
 }
 
 func (set *EventSet) CheckSum() error {
-	headers := UnsafeCastBytesToHeader(set.headers)
-	position := 0
-	for _, header := range headers {
-		crc := MakeCRC(set.data[position : position+int(header.length)])
-		if crc != header.crc {
+	//headers := UnsafeCastBytesToHeader(set.headers)
+	//position := 0
+	for index, _ := range set.headers {
+		//crc := MakeCRC(set.data[position : position+int(header.length)])
+		crc := MakeCRC(set.events[index])
+		if crc != set.headers[index].crc {
 			return errors.New("Data appears corrupted")
 		}
-		position += int(header.length)
+		//position += int(set.headers[index].length)
 	}
 	return nil
 }
 
+func (set *EventSet) Count() int {
+	return len(set.headers) // >> 3
+}
+
+func (set *EventSet) LengthAt(index int) uint16 {
+	return set.headers[index].length
+}
+
+func (set *EventSet) EventTypeAt(index int) uint16 {
+	return set.headers[index].eventType
+}
+
+func (set *EventSet) CheckSumAt(index int) uint32 {
+	return set.headers[index].crc
+}
+
+func (set *EventSet) DataAt(index int) []byte {
+	return set.events[index]
+}
+
+/*
 func (set *EventSet) Get() ([]Event, error) {
 	return set.GetSlice(0, MaxInt)
 }
@@ -113,172 +138,128 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) ([]Event, error) {
 	}
 	return events, nil
 }
+*/
 
-func (set *EventSet) Put(events ...Event) (*EventSet, error) {
+func (set *EventSet) Get() (*EventSet, error) {
+	return set.GetSlice(0, MaxInt)
+}
 
-	prevHeaderSize := len(set.headers)
-	prevHeaderCap := cap(set.headers)
-	prevDataSize := len(set.data)
-	prevDataCap := cap(set.data)
-	newHeaderCount := len(events)
-
-	reqHeaderSize := prevHeaderSize + (newHeaderCount << 3) // << 3 = * 8
-	prevHeaderCount := prevHeaderSize >> 3
-	newHeaderSize := newHeaderCount << 3
-
-	var headers []Header
-	if reqHeaderSize < prevHeaderCap {
-		data := set.headers[0 : prevHeaderSize+newHeaderSize]
-		headers = UnsafeCastBytesToHeader(data)
-	} else {
-		headers = make([]Header, reqHeaderSize>>3, reqHeaderSize>>2)
-		if prevHeaderSize > 0 { // Cannot cast empty byte[]
-			copy(headers, UnsafeCastBytesToHeader(set.headers))
-		}
+func (set *EventSet) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
+	headerLength := len(set.headers)
+	// Validate inputs
+	if startIndex < 0 || endIndex < 0 || startIndex >= endIndex || startIndex > headerLength {
+		return nil, errors.New("Either start or end index is out of range")
+	}
+	// No data so just return empty slice
+	if headerLength == 0 {
+		return NewEmptyEventSet(), nil
+	}
+	// End out of range so move it back
+	if endIndex >= headerLength {
+		endIndex = headerLength
 	}
 
-	newDataSize := 0
-	maxDataSize := int(MaxUint16)
-	for i := range events {
-		eventSize := len(events[i].Data)
-		if eventSize > maxDataSize {
+	headerData := set.headerData[startIndex<<3 : endIndex<<3]
+	events := set.events[startIndex:endIndex]
+	dataLength := cap(set.eventData)
+	lowerBound := dataLength - cap(events[0])
+	upperBound := dataLength - cap(events[len(events)-1])
+	eventData := set.eventData[lowerBound:upperBound]
+	headers := UnsafeCastBytesToHeader(headerData)
+
+	return &EventSet{
+		headerData: headerData,
+		eventData:  eventData,
+		headPos:    set.headPos - startIndex,
+		tailPos:    set.tailPos - endIndex,
+		headers:    headers,
+		events:     events,
+	}, nil
+
+	//return eventSet, nil
+}
+
+func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
+	prevHeaderSize := len(set.headerData)
+	prevHeaderCap := cap(set.headerData)
+	prevEventSize := len(set.eventData)
+	prevEventCap := cap(set.eventData)
+
+	newCount := len(newEvents)
+
+	reqHeaderSize := prevHeaderSize + (newCount << 3)
+	prevHeaderCount := prevHeaderSize >> 3
+	newHeaderSize := newCount << 3
+
+	// Placeholders for the new immutable set
+	var headerData []byte
+	var eventData []byte
+	var headers []Header
+	var events [][]byte
+
+	// Decide if we need expand or grow for headers
+	if reqHeaderSize < prevHeaderCap {
+		headerData = set.headerData[0 : prevHeaderSize+newHeaderSize]
+		// Event overlay follows the same growth rules as headers
+		events = set.events[0 : prevHeaderSize+newHeaderSize]
+	} else { // Magic expando sauce needed for header (growth algo for fixed size enries)
+		headerData = make([]byte, reqHeaderSize, reqHeaderSize<<1)
+		copy(headerData, set.headerData)
+		// Should only have to copy over pointers to the slices so it will be fast
+		events = make([][]byte, reqHeaderSize, reqHeaderSize<<1)
+		copy(events, set.events)
+	}
+	// Build the header overlay now that data has been resized
+	headers = UnsafeCastBytesToHeader(headerData)
+
+	newEventSize := 0
+	// Copy info from events into the new header structures
+	for i := range newEvents {
+		eventSize := len(newEvents[i].Data)
+		if eventSize > MAX_EVENT_SIZE {
 			return nil, errors.New("Event data too large")
 		}
-		newDataSize += eventSize
+		newEventSize += eventSize
+
 		headers[prevHeaderCount+i].length = uint16(eventSize)
-		headers[prevHeaderCount+i].eventType = events[i].EventType
-		headers[prevHeaderCount+i].crc = MakeCRC(events[i].Data)
+		headers[prevHeaderCount+i].eventType = newEvents[i].EventType
+		headers[prevHeaderCount+i].crc = MakeCRC(newEvents[i].Data)
 	}
 
-	reqDataSize := prevDataSize + newDataSize
+	// Now we can figure out the size needed to store event data
+	reqEventSize := prevEventSize + newEventSize
 
-	var data []byte
-	if reqDataSize < prevDataCap { // Simple expand into existing cap
-		data = set.data[0:reqDataSize]
-	} else { // Magic expando sauce needed
+	// Decide if we need expand or grow for data
+	if reqEventSize < prevEventCap {
+		eventData = set.eventData[0:reqEventSize]
+	} else { // Magic expando sauce needed (growth algo for variable sized entries)
 		// Ensures that the cap is 16 byte alligned... 0x3F would be 8 byte alligned
 		// Account for at least 2 similarly sized, 16 byte alligned adds
-		reqDataCap := (reqDataSize | 0x7F) + ((newDataSize << 1) | 0x7F)
-		//dataArray := new([1024 * 1024]byte)
-		//data = dataArray[0:requiredSize]
-		data = make([]byte, reqDataSize, reqDataCap)
-		copy(data, set.data)
-	}
-	for i := range events {
-		copy(data[prevDataSize:], events[i].Data)
-		prevDataSize += len(events[i].Data)
+		reqEventCap := (reqEventSize | 0x7F) + ((newEventSize << 1) | 0x7F)
+		eventData = make([]byte, reqEventSize, reqEventCap)
+		copy(eventData, set.eventData)
 	}
 
-	//currentSize := len(set.data)
-
-	//data := set.expandAndCopyData(currentSize, newDataSize, events...)
-	return &EventSet{
-		headers: UnsafeCastHeaderToBytes(headers),
-		data:    data,
-	}, nil
-}
-
-func (set *EventSet) expandAndCopyData(currentSize int, newSize int, events ...Event) []byte {
-
-	dataSize := len(set.data)          // Correct actually consumed size
-	dataCap := cap(set.data)           // Available in backing array
-	requiredSize := dataSize + newSize // Number of bytes needed
-	var data []byte
-	if requiredSize < dataCap { // Simple expand into existing cap
-		data = set.data[0:requiredSize]
-	} else { // Magic expando sauce needed
-		// Ensures that the cap is 16 byte alligned... 0x3F would be 8 byte alligned
-		// Account for at least 2 similarly sized, 16 byte alligned adds
-		requiredCap := (requiredSize | 0x7F) + ((newSize << 1) | 0x7F)
-		//dataArray := new([1024 * 1024]byte)
-		//data = dataArray[0:requiredSize]
-		data = make([]byte, requiredSize, requiredCap)
-		copy(data, set.data)
-		/*
-			if dataSize <= 64 { // At very small sizes it's fater to do a simply loop copy
-				for i := range set.data {
-					data[i] = set.data[i]
-				}
-			} else {
-				if dataSize <= 1024 { // Below a certain threshold it's faster to do a simple byte copy
-					copy(data, set.data)
-				} else { // Working on optimized method of copy for 16 byte alligned data
-					copy(data, set.data)
-					//copy(UnsafeCastBytesToUint64(data), UnsafeCastBytesToUint64(set.data))
-				}
-			}
-		*/
-	}
-	// NEED TO TEST VALIDITY OF BOUNDARIES DURING COPY!!  DOES ENDIAN MATTER???
-	/*
-		size := currentSize + newSize
-		// Nearest 4k chunk plus the slice size
-		capacity := (size | 0xFFF) + DATA_SLICE_SIZE // currentSize + (newSize << 8)
-		//capacity := size | 0xF
-		var data []byte
-	*/
-	/*if currentSize == 0 {
-		capacity := size > 4096 ? size : 4096
-		data = make([]byte, size, (size+1024) * 2)
-	}*/
-	/*
-		if cap(set.data) < size { // Need to expand and copy
-			data = make([]byte, size, capacity)
-			copy(data, set.data)
-		} else { // Use available capacity
-			data = set.data[0:size]
+	// Now we can copy over the event data and build the event overlay
+	for i := range newEvents {
+		eventSize := len(newEvents[i].Data)
+		if eventSize == 0 {
+			continue
 		}
-	*/
-	for i := range events {
-		copy(data[currentSize:], events[i].Data)
-		currentSize += len(events[i].Data)
+		//UnsafeCopyBytes(data[prevDataSize:], events[i].Data)
+		copy(eventData[prevEventSize:], newEvents[i].Data)
+		// Build the overlay for this event
+		events[i] = eventData[prevEventSize : prevEventSize+eventSize]
+		// Track the moving position
+		prevEventSize += eventSize
 	}
-	return data
-}
 
-func (set *EventSet) Count() int {
-	return len(set.headers) / 8
-}
-
-func UnsafeCastBytesToHeader(source []byte) []Header {
-	//reflect.Array()
-	length := len(source) / 8 // Bytes / Header struct
-	capacity := cap(source) / 8
-	result := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&source[0])),
-		Len:  length,
-		Cap:  capacity,
-	}
-	return *(*[]Header)(unsafe.Pointer(&result))
-}
-
-func UnsafeCastHeaderToBytes(source []Header) []byte {
-	length := len(source) * 8 // Bytes / Header struct
-	capacity := cap(source) * 8
-	result := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&source[0])),
-		Len:  length,
-		Cap:  capacity,
-	}
-	return *(*[]byte)(unsafe.Pointer(&result))
-}
-
-func UnsafeCastBytesToUint64(source []byte) []uint64 {
-	length := len(source) / 8 // Bytes / uint64
-	result := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&source[0])),
-		Len:  length,
-		Cap:  length,
-	}
-	return *(*[]uint64)(unsafe.Pointer(&result))
-}
-
-func UnsafeCastUint64ToBytes(source []uint64) []byte {
-	length := len(source) * 8 // Bytes / uint64
-	result := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&source[0])),
-		Len:  length,
-		Cap:  length,
-	}
-	return *(*[]byte)(unsafe.Pointer(&result))
+	return &EventSet{
+		headerData: headerData,
+		eventData:  eventData,
+		headPos:    set.headPos,
+		tailPos:    set.tailPos + newCount,
+		headers:    headers,
+		events:     events,
+	}, nil
 }

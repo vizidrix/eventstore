@@ -84,7 +84,7 @@ func Test_Should_return_empty_event_slice_for_empty_set(t *testing.T) {
 
 	// Assert
 	IsNil(t, err, "Should have allowed read from empty set")
-	AreEqual(t, 0, len(events), "Should have returned an empty slice")
+	AreEqual(t, 0, events.Count(), "Should have returned an empty slice")
 }
 
 func Test_Should_return_correct_sub_range_from_set(t *testing.T) {
@@ -99,15 +99,15 @@ func Test_Should_return_correct_sub_range_from_set(t *testing.T) {
 	}...)
 
 	// Act
-	events, err := eventSet.GetSlice(2, 3)
+	events, err := eventSet.GetSlice(2, 4)
 
 	// Assert
 	IsNil(t, err, "Should have allowed read slice from populated set")
-	AreEqual(t, 2, len(events), "Should have returned two results")
-	AreEqual(t, uint16(3), events[0].EventType, "Should have returned the second event")
-	AreEqual(t, 14, len(events[0].Data), "Should have returned 14 bytes of data")
-	AreEqual(t, uint16(4), events[1].EventType, "Should have returned the third event")
-	AreEqual(t, 16, len(events[1].Data), "Should have returned 16 bytes of data")
+	AreEqual(t, 2, events.Count(), "Should have returned two results")
+	AreEqual(t, uint16(3), events.EventTypeAt(0), "Should have returned the second event")
+	AreEqual(t, 14, len(events.DataAt(0)), "Should have returned 14 bytes of data")
+	AreEqual(t, uint16(4), events.EventTypeAt(1), "Should have returned the third event")
+	AreEqual(t, 16, len(events.DataAt(1)), "Should have returned 16 bytes of data")
 
 }
 
@@ -127,10 +127,21 @@ func Test_Should_limit_end_index_to_max_available_from_set(t *testing.T) {
 
 	// Assert
 	IsNil(t, err, "Should have allowed read slice from populated set")
-	AreEqual(t, 3, len(events), "Should have returned three results")
+	AreEqual(t, 3, events.Count(), "Should have returned three results")
 }
 
-func Test_Should_checksum_successfully_for_valid_data(t *testing.T) {
+func Test_Should_checksum_successfully_for_empty_dataset(t *testing.T) {
+	// Arrange
+	eventSet := goes.NewEmptyEventSet()
+
+	// Act
+	result := eventSet.CheckSum()
+
+	// Assert
+	IsNil(t, result, "Should have passed check sum")
+}
+
+func Test_Should_checksum_successfully_for_valid_dataset(t *testing.T) {
 	// Arrange
 	eventSet := goes.NewEmptyEventSet()
 	eventSet, _ = eventSet.Put([]goes.Event{
@@ -144,6 +155,17 @@ func Test_Should_checksum_successfully_for_valid_data(t *testing.T) {
 
 	// Assert
 	IsNil(t, err, "Should not have failed check sum")
+}
+
+func Test_Should_return_error_if_end_index_less_than_zero(t *testing.T) {
+	// Arrange
+	eventSet := goes.NewEmptyEventSet()
+
+	// Act
+	_, err := eventSet.GetSlice(0, -1)
+
+	// Assert
+	IsNotNil(t, err, "Should have failed due to end index bounds")
 }
 
 func Test_Should_retrieve_from_multiple_puts(t *testing.T) {
@@ -167,9 +189,33 @@ func Test_Should_retrieve_from_multiple_puts(t *testing.T) {
 
 	// Assert
 	IsNil(t, err, "Should not have failed Get")
-	AreEqual(t, 6, len(events), "Should have brought back all records")
-	AreEqual(t, uint16(2), events[1].EventType, "Should have retained initial headers")
-	AreEqual(t, uint16(5), events[4].EventType, "Should have appended additional headers")
+	AreEqual(t, 6, events.Count(), "Should have brought back all records")
+	AreEqual(t, uint16(2), events.EventTypeAt(1), "Should have retained initial headers")
+	AreEqual(t, uint16(5), events.EventTypeAt(4), "Should have appended additional headers")
+}
+
+func Test_Should_expand_headers(t *testing.T) {
+	// Arrange
+	eventSet := goes.NewEmptyEventSet()
+	eventSet, _ = eventSet.Put([]goes.Event{
+		{1, MakeByteSlice(10)},
+	}...)
+
+	// Act
+	batch := new([goes.HEADER_SLICE_SIZE]goes.Event)
+	for i := 0; i < goes.HEADER_SLICE_SIZE; i++ {
+		batch[i] = goes.Event{uint16(i), MakeByteSlice(i)}
+	}
+	eventSet, _ = eventSet.Put(batch[:]...)
+
+	// Act
+	events, err := eventSet.Get()
+
+	// Assert
+	IsNil(t, err, "Should not have failed Get")
+	AreEqual(t, len(batch)+1, events.Count(), "Should have brought back all records")
+	AreEqual(t, uint16(0), events.EventTypeAt(1), "Should have retained initial headers")
+	AreEqual(t, uint16(3), events.EventTypeAt(4), "Should have appended additional headers")
 }
 
 func Test_Should_return_err_if_event_is_too_large(t *testing.T) {
@@ -182,7 +228,7 @@ func Test_Should_return_err_if_event_is_too_large(t *testing.T) {
 		{2, MakeByteSlice(12000)},
 		{3, MakeByteSlice(140000)}, // make it 1400000
 	}...)
-
+	//t.Fail()
 	// Assert
 	IsNotNil(t, err, "Should have throw event too large error")
 }

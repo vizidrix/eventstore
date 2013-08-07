@@ -20,9 +20,8 @@ func ignore_eventset_benchmarks() {
 
 type KeyGen func() uint64
 
-func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
+func Run_PutGet_Spread(b *testing.B, eventSize int, batchSize int, batchCount int) {
 	runtime.GC()
-	eventSet := goes.NewEmptyEventSet()
 	eventData := make([]byte, eventSize)
 	for i := 0; i < eventSize; i++ {
 		eventData[i] = byte(i | 0xFF)
@@ -35,16 +34,70 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 		}
 	}
 
-	/*
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		//go func() {
+		//b.StopTimer()
+		/*
+			gcTimer++
+			if gcTimer == gcTime {
+				//b.StopTimer()
+				runtime.GC()
+				//b.StartTimer()
+				gcTimer = 0
+			}
+		*/
+
+		store := make([]*goes.EventSet, batchCount)
 		for index := 0; index < batchCount; index++ {
-			eventSet.Put(batch...)
+			store[index] = goes.NewEmptyEventSet()
+		}
+
+		b.StartTimer()
+
+		for index := 0; index < batchCount; index++ {
+			for i := 0; i < batchCount; i++ {
+				store[index], _ = store[index].Put(batch...)
+			}
+		}
+
+		for index := 0; index < batchCount; index++ {
+			store[index].Get()
+		}
+
+		b.StopTimer()
+		//}()
+		//count++
+	}
+	/*
+		for count < b.N {
+			time.Sleep(10 * time.Nanosecond)
 		}
 	*/
+}
+
+func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
+	runtime.GC()
+	//eventSet := goes.NewEmptyEventSet()
+	eventData := make([]byte, eventSize)
+	for i := 0; i < eventSize; i++ {
+		eventData[i] = byte(i | 0xFF)
+	}
+	batch := make([]goes.Event, batchSize)
+	for i := 0; i < batchSize; i++ {
+		batch[i] = goes.Event{
+			EventType: uint16(i),
+			Data:      eventData,
+		}
+	}
 
 	b.ResetTimer()
-	//b.StopTimer()
+	b.StopTimer()
 	for i := 0; i < b.N; i++ {
+		//go func() {
 		//b.StopTimer()
+
 		gcTimer++
 		if gcTimer == gcTime {
 			b.StopTimer()
@@ -53,21 +106,90 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 			gcTimer = 0
 		}
 
-		//b.StartTimer()
-		//eventSet := goes.NewEmptyEventSet()
-		//b.StartTimer()
+		eventSet := goes.NewEmptyEventSet()
+		b.StartTimer()
 
 		for index := 0; index < batchCount; index++ {
-			//b.StartTimer()
+			//eventSet, _ = eventSet.Put(batch...)
 			eventSet.Put(batch...)
-			//b.StopTimer()
-
-			//b.StartTimer()
-			//eventSet.Get()
-			//b.StopTimer()
 		}
 
 		//eventSet.Get()
+		b.StopTimer()
+		//}()
+		//count++
+	}
+	/*
+		for count < b.N {
+			time.Sleep(10 * time.Nanosecond)
+		}
+	*/
+}
+
+func Run_PutGet2(b *testing.B, eventSize int, batchSize int, batchCount int) {
+	runtime.GC()
+	//eventSet := goes.NewEmptyEventSet()
+	eventData := make([]byte, eventSize)
+	for i := 0; i < eventSize; i++ {
+		eventData[i] = byte(i | 0xFF)
+	}
+	batch := make([]goes.Event, batchSize)
+	for i := 0; i < batchSize; i++ {
+		batch[i] = goes.Event{
+			EventType: uint16(i),
+			Data:      eventData,
+		}
+	}
+
+	b.ResetTimer()
+	b.StopTimer()
+	var err error
+	for i := 0; i < b.N; i++ {
+		gcTimer++
+		if gcTimer == gcTime {
+			//b.StopTimer()
+			runtime.GC()
+			//b.StartTimer()
+			gcTimer = 0
+		}
+
+		eventSet := goes.NewEmptyEventSet()
+		for index := 0; index < batchCount; index++ {
+			//b.StartTimer()
+
+			eventSet, err = eventSet.Put(batch...)
+			if err != nil {
+				log.Printf("Put failed: %s", err)
+				b.Fail()
+			}
+
+			//b.StopTimer()
+		}
+
+		b.StartTimer()
+		_, err := eventSet.Get()
+		//b.Logf("Read: %d", len(events))
+		b.StopTimer()
+		if err != nil {
+			b.Fail()
+		}
+		/*
+			if err := eventSet.CheckSum(); err != nil {
+				b.Fail()
+			}
+		*/
+
+		/*
+			if _, err := eventSet.Get(); err == nil {
+				//if len(events) != batchSize*batchCount {
+				//	log.Printf("Events[ %d, %d ]: %d, %d, %d", len(events), cap(events), i, batchSize, batchCount)
+				//	b.Fail()
+				//}
+			} else {
+				log.Printf("Put failed: %s", err)
+				b.Fail()
+			}
+		*/
 
 	}
 }
