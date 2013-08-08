@@ -1,9 +1,14 @@
 package eventstore
 
 import (
+	"encoding/binary"
+	"fmt"
 	"io"
+	"log"
 	"os"
 )
+
+func filestore_ignore() { log.Println(fmt.Sprintf("", 10)) }
 
 //var fs FileStore = osFS{}
 
@@ -56,3 +61,64 @@ func Write(file string, flag int, data []byte) {
 
 }
 */
+
+func WriteData(dest io.Writer, data []byte) error {
+	return binary.Write(dest, binary.BigEndian, data)
+}
+
+func getFile(path string) (*os.File, error) {
+	var fs IFileStore = osFileStore{}
+
+	if file, err := fs.Open(path); err == nil {
+		return file, err
+	} else {
+		return nil, err
+	}
+}
+
+func makeFile(path string) (*os.File, error) {
+	var fs IFileStore = osFileStore{}
+
+	if _, err := fs.Stat(path); err != nil {
+		if fs.IsNotExist(err) {
+			log.Println("File doesn't exist")
+			if _, err := fs.Create(path); err != nil {
+				log.Println("Unable to create file: %s", err)
+				return nil, err
+			}
+		} else {
+			log.Println("Unknown error")
+			return nil, err
+		}
+	}
+	log.Printf("File exists: %s", path)
+	file, err := fs.Open(path)
+	if err != nil {
+		log.Printf("Error opening file: %s", err)
+		return nil, err
+	}
+	return file, nil
+}
+
+func makeDirectory(path string) (IFile, error) {
+	var fs IFileStore = osFileStore{}
+
+	if _, err := fs.Stat(path); err != nil {
+		if fs.IsNotExist(err) {
+			// file does not exist
+			log.Println("Path doesn't exist")
+			//var perm uint32 = 0755
+			if err := fs.Mkdir(path, 0755); err != nil {
+				log.Println("Unable to create dir: %s", err)
+				return nil, err
+			}
+
+		} else {
+			// other error
+			log.Println("Unknown error")
+			return nil, err
+		}
+	}
+	log.Printf("Directory exists: %s", path)
+	return nil, nil
+}

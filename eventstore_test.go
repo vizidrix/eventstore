@@ -63,7 +63,7 @@ func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing
 
 func Test_Should_try_to_connect_to_FragmentFileSystemEventStore_with_correct_path(t *testing.T) {
 	// Arrange
-	path := "ffs://eventstore/"
+	path := "fs://eventstore/"
 
 	// Act
 	eventStore, err := goes.Connect(path)
@@ -75,7 +75,7 @@ func Test_Should_try_to_connect_to_FragmentFileSystemEventStore_with_correct_pat
 		return
 	}
 	switch es := (eventStore).(type) {
-	case *goes.MemoryES:
+	case *goes.FileSystemES:
 		{
 		}
 	default:
@@ -189,7 +189,6 @@ func EventStore_Should_return_middle_events_for_version_range(t *testing.T, conn
 
 func EventStore_Should_return_two_matching_events_for_existing_ids(t *testing.T, connString string) {
 	// Arrange
-	log.Printf("\n\nReturn two\n\n")
 	eventStore, _ := goes.Connect(connString)
 	kind := goes.NewAggregateKind("namespace", "kind")
 	kindPartition := eventStore.Kind(kind)

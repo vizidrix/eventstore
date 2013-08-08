@@ -51,6 +51,15 @@ Folder per Domain
 	-> Folder per Aggregate Type
 		-> File per Aggregate Id
 
+V4:
+
+-- Separated header info from data
+
+[ Int16        | Int16       | Int32        ]
+[ LEN 64k      | TYPE        | CRC          ]
+
+[ byte[] ]
+[ Data   ]
 
 V3:
 [ Int32 					| Int32 | byte[]	]
@@ -88,20 +97,20 @@ domain := es.Domain("namespace")
 aggregate := domain.Aggregate("person")
 instance := aggregate.Instance(id)
 
-err := instance.Append(registered)
+err := instance.Put(registered)
 
 - or -
 
-err := instance.Append(
+err := instance.Put(
 	registered,
 	nameChanged,
 	profileUpdated,
 	nameChangeReversed)
 
-events, err := instance.ReadRaw()
+events, err := instance.Get()
 
 
-events, err := es.ReadRaw("namespace", "person", id)
+events, err := es.Get("namespace", "person", id)
 
 
 

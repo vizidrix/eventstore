@@ -2,19 +2,9 @@ package eventstore
 
 import (
 	"errors"
-	//"bufio"
-	//"bytes"
 	"fmt"
-	"io"
 	"log"
-	"math/rand"
-	"os"
-	//"os"
-	"encoding/binary"
 	"strings"
-	//"hash/crc32"
-	//"runtime"
-	"time"
 )
 
 func event_store_ignore() { log.Println(fmt.Sprintf("", 10)) }
@@ -49,7 +39,6 @@ type EventReader interface {
 }
 
 type EventWriter interface {
-	//Put(eventType uint16, data []byte) error
 	Put(newEvents ...Event) (*EventSet, error)
 }
 
@@ -67,15 +56,8 @@ type AggregatePartitioner interface {
 }
 
 func Connect(connString string) (EventStorer, error) {
-	if strings.HasPrefix(connString, "ffs://") {
-		//return NewFileSystemEventStore(connString), nil
-
-		return NewMemoryES(connString), nil
-
-		//} else if strings.HasPrefix(connString, "fs://") {
-		//	return NewFileSystemEventStore(), nil
-		//} else if strings.HasPrefix(connString, "chan://") {
-		//	return NewChanEventStore(connString), nil
+	if strings.HasPrefix(connString, "fs://") {
+		return NewFileSystemES(connString), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryES(connString), nil
 	} else {
@@ -240,91 +222,3 @@ func (aggregate *Aggregate) Append(event IEvent) error {
 
 	return nil
 */
-
-func WriteData(dest io.Writer, data []byte) error {
-	return binary.Write(dest, binary.BigEndian, data)
-}
-
-func getFile(path string) (*os.File, error) {
-	var fs IFileStore = osFileStore{}
-
-	if file, err := fs.Open(path); err == nil {
-		return file, err
-	} else {
-		return nil, err
-	}
-}
-
-func makeFile(path string) (*os.File, error) {
-	var fs IFileStore = osFileStore{}
-
-	if _, err := fs.Stat(path); err != nil {
-		if fs.IsNotExist(err) {
-			log.Println("File doesn't exist")
-			if _, err := fs.Create(path); err != nil {
-				log.Println("Unable to create file: %s", err)
-				return nil, err
-			}
-		} else {
-			log.Println("Unknown error")
-			return nil, err
-		}
-	}
-	log.Printf("File exists: %s", path)
-	file, err := fs.Open(path)
-	if err != nil {
-		log.Printf("Error opening file: %s", err)
-		return nil, err
-	}
-	return file, nil
-}
-
-func makeDirectory(path string) (IFile, error) {
-	var fs IFileStore = osFileStore{}
-
-	if _, err := fs.Stat(path); err != nil {
-		if fs.IsNotExist(err) {
-			// file does not exist
-			log.Println("Path doesn't exist")
-			//var perm uint32 = 0755
-			if err := fs.Mkdir(path, 0755); err != nil {
-				log.Println("Unable to create dir: %s", err)
-				return nil, err
-			}
-
-		} else {
-			// other error
-			log.Println("Unknown error")
-			return nil, err
-		}
-	}
-	log.Printf("Directory exists: %s", path)
-	return nil, nil
-}
-
-func NewKey() int64 {
-	return keyGen2()
-}
-
-var keyGen = func() func() int64 {
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return func() int64 {
-		return rnd.Int63()
-	}
-}()
-
-var keyGen2 = func() func() int64 {
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	value := rnd.Int63()
-	count := 0
-	return func() int64 {
-		if count == 6 {
-			value = rnd.Int63()
-			count = 0
-		} else {
-			value++
-			count++
-		}
-		return value
-	}
-}()

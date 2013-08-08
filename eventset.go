@@ -43,28 +43,31 @@ type EventSet struct {
 
 	headPos int // Index of first event in set
 	tailPos int // Index of last event in set
-	//offsets []int // Precalculated map of event locations
 
 	headers []Header // Typed view of header
-	events  [][]byte
+	events  [][]byte // Map of index to event data
 }
 
 const (
-	HEADER_SLICE_SIZE = 64   // Room for 8 appends before expand
-	DATA_SLICE_SIZE   = 4096 //* 2048
-	MAX_EVENT_SIZE    = int(MaxUint16)
+	HEADER_SLICE_SIZE = 64 // Room for 8 appends before expand
+	// ** Huge tuning variable
+	// Smaller # will result in general speed improvement for items below the threshold size
+	// Larger # will result in faster first append for larger events
+	// Set this to the largest average event size?
+	DATA_SLICE_SIZE = 1024
+	MAX_EVENT_SIZE  = int(MaxUint16)
 )
 
 func NewEmptyEventSet() *EventSet {
-	headerData := make([]byte, 0, HEADER_SLICE_SIZE)
+	headerData := new([HEADER_SLICE_SIZE]byte)[0:0]
 	return &EventSet{
 		// Initialize primary raw data store
 		headerData: headerData,
-		eventData:  make([]byte, 0, DATA_SLICE_SIZE),
+		eventData:  new([DATA_SLICE_SIZE]byte)[0:0],
 		headPos:    0,
 		tailPos:    0,
 		headers:    UnsafeCastBytesToHeader(headerData),
-		events:     make([][]byte, 0, HEADER_SLICE_SIZE),
+		events:     new([HEADER_SLICE_SIZE][]byte)[0:0],
 	}
 }
 
@@ -149,7 +152,7 @@ func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
 	var events [][]byte
 
 	// Decide if we need expand or grow for headers
-	if reqHeaderSize < prevHeaderCap {
+	if reqHeaderSize <= prevHeaderCap {
 		headerData = set.headerData[0 : prevHeaderSize+newHeaderSize]
 		// Event overlay follows the same growth rules as headers
 		events = set.events[0 : prevHeaderSize+newHeaderSize]
@@ -162,7 +165,6 @@ func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
 	}
 	// Build the header overlay now that data has been resized
 	headers = UnsafeCastBytesToHeader(headerData)
-
 	newEventSize := 0
 	// Copy info from events into the new header structures
 	for i := range newEvents {
@@ -181,13 +183,18 @@ func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
 	reqEventSize := prevEventSize + newEventSize
 
 	// Decide if we need expand or grow for data
-	if reqEventSize < prevEventCap {
+	if reqEventSize <= prevEventCap {
 		eventData = set.eventData[0:reqEventSize]
 	} else { // Magic expando sauce needed (growth algo for variable sized entries)
-		// Ensures that the cap is 16 byte alligned... 0x3F would be 8 byte alligned
-		// Account for at least 2 similarly sized, 16 byte alligned adds
-		reqEventCap := (reqEventSize | 0x7F) + ((newEventSize << 1) | 0x7F)
-		eventData = make([]byte, reqEventSize, reqEventCap)
+		// Ensures that the cap is byte alligned... 0x3F would be 8 byte alligned
+		desiredBuffer := ((reqEventSize * EVENT_GROWTH_MULTIPLIER) >> 7) | 0x3F
+		if MAX_EVENT_BUFFER >= 0 && MAX_EVENT_BUFFER < desiredBuffer {
+			desiredBuffer = MAX_EVENT_BUFFER
+		}
+		if MIN_EVENT_BUFFER > desiredBuffer {
+			desiredBuffer = MIN_EVENT_BUFFER
+		}
+		eventData = make([]byte, reqEventSize, reqEventSize+desiredBuffer)
 		copy(eventData, set.eventData)
 	}
 
@@ -214,3 +221,9 @@ func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
 		events:     events,
 	}, nil
 }
+
+const (
+	MIN_EVENT_BUFFER        = 0   //64
+	MAX_EVENT_BUFFER        = -1  // Limits the growth of the event buffers. -1 turns it off.
+	EVENT_GROWTH_MULTIPLIER = 256 // (BUFFER * N) / 128 so 160 = 125%, 192 = 150%
+)

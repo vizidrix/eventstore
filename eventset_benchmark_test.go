@@ -77,6 +77,69 @@ func Run_PutGet_Spread(b *testing.B, eventSize int, batchSize int, batchCount in
 	*/
 }
 
+func Run_PutGet_Trim(b *testing.B, eventSize int) {
+	//b.StopTimer()
+	runtime.GC()
+	event := goes.Event{
+		EventType: 1,
+		Data:      make([]byte, eventSize),
+	}
+	/*
+		eventSets := make([]*goes.EventSet, b.N)
+		for i := 0; i < b.N; i++ {
+			eventSets[i] = goes.NewEmptyEventSet()
+		}
+	*/
+	//eventSet := goes.NewEmptyEventSet()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		eventSet := goes.NewEmptyEventSet()
+
+		//for i := 0; i < 10; i++ {
+		////eventSets[index], _ = eventSets[index].Put(event)
+		//}
+		//for i := 0; i < 10; i++ {
+		////eventSets[index].Get()
+		//}
+
+		//b.StartTimer()
+		//for i := 0; i < 20; i++ {
+		eventSet, _ = eventSet.Put(event)
+		//}
+		eventSet.Get()
+		//b.StopTimer()
+	}
+}
+
+func Run_PutGet_Trim2(b *testing.B, eventSize int) {
+	//b.StopTimer()
+	//runtime.GC()
+	event := goes.Event{
+		EventType: 1,
+		Data:      make([]byte, eventSize),
+	}
+	/*
+		eventSets := make([]*goes.EventSet, b.N)
+		for i := 0; i < b.N; i++ {
+			eventSets[i] = goes.NewEmptyEventSet()
+		}
+	*/
+	//eventSet := goes.NewEmptyEventSet()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		eventSet := goes.NewEmptyEventSet()
+		//for i := 0; i < 10; i++ {
+		////eventSets[index], _ = eventSets[index].Put(event)
+		//}
+		//for i := 0; i < 10; i++ {
+		////eventSets[index].Get()
+		//}
+
+		eventSet, _ = eventSet.Put(event)
+		eventSet.Get()
+	}
+}
+
 func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 	runtime.GC()
 	//eventSet := goes.NewEmptyEventSet()
@@ -95,16 +158,15 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 	//b.ResetTimer()
 	//b.StopTimer()
 	for i := 0; i < b.N; i++ {
-		//go func() {
-		//b.StopTimer()
-
-		/*gcTimer++
-		if gcTimer == gcTime {
-			b.StopTimer()
-			runtime.GC()
-			b.StartTimer()
-			gcTimer = 0
-		}*/
+		/*
+			gcTimer++
+			if gcTimer == gcTime {
+				//b.StopTimer()
+				runtime.GC()
+				//b.StartTimer()
+				gcTimer = 0
+			}
+		*/
 
 		eventSet := goes.NewEmptyEventSet()
 		//b.StartTimer()
@@ -116,14 +178,7 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 
 		eventSet.Get()
 		//b.StopTimer()
-		//}()
-		//count++
 	}
-	/*
-		for count < b.N {
-			time.Sleep(10 * time.Nanosecond)
-		}
-	*/
 }
 
 func Run_PutGet2(b *testing.B, eventSize int, batchSize int, batchCount int) {
@@ -192,6 +247,22 @@ func Run_PutGet2(b *testing.B, eventSize int, batchSize int, batchCount int) {
 		*/
 
 	}
+}
+
+func Benchmark_EventSet_PutGetTrim_10byte(b *testing.B) {
+	Run_PutGet_Trim(b, 10)
+}
+
+func Benchmark_EventSet_PutGetTrim_1024byte(b *testing.B) {
+	Run_PutGet_Trim(b, 1024)
+}
+
+func Benchmark_EventSet_PutGetTrim_4096byte(b *testing.B) {
+	Run_PutGet_Trim(b, 4096)
+}
+
+func Benchmark_EventSet_PutGetTrim_16384byte(b *testing.B) {
+	Run_PutGet_Trim(b, 16384)
 }
 
 func Benchmark_EventSet_PutGet_10byte_b01xc00001(b *testing.B) {

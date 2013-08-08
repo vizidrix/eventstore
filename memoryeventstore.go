@@ -14,7 +14,8 @@ func ignore_chaneventstore() {
 
 type MemoryES struct {
 	connString string
-	kindStore  map[uint32]*MemoryESKindPartition
+	//kindStore  map[uint32]*MemoryESKindPartition
+	kindStore map[uint32]KindPartitioner
 }
 
 type MemoryESKindPartition struct {
@@ -30,7 +31,7 @@ type MemoryESAggregatePartition struct {
 func NewMemoryES(connString string) EventStorer {
 	return &MemoryES{
 		connString: connString,
-		kindStore:  make(map[uint32]*MemoryESKindPartition),
+		kindStore:  make(map[uint32]KindPartitioner),
 	}
 }
 
@@ -39,7 +40,7 @@ func (es *MemoryES) Kind(kind *AggregateKind) KindPartitioner {
 	if !foundPartition {
 		partition = &MemoryESKindPartition{
 			kind:           kind,
-			aggregateStore: make(map[uint64]AggregatePartitioner), //[][]byte),
+			aggregateStore: make(map[uint64]AggregatePartitioner),
 		}
 		es.kindStore[kind.Hash()] = partition
 	}
@@ -53,7 +54,6 @@ func (kindPartition *MemoryESKindPartition) Id(id uint64) AggregatePartitioner {
 			id:     id,
 			events: NewEmptyEventSet(),
 		}
-		//partition = NewEmptyEventSet()
 		kindPartition.aggregateStore[id] = partition
 	}
 	return partition
