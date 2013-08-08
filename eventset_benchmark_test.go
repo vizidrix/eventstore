@@ -63,7 +63,7 @@ func Run_PutGet_Spread(b *testing.B, eventSize int, batchSize int, batchCount in
 		}
 
 		for index := 0; index < batchCount; index++ {
-			store[index].Get()
+			store[index].GetSlice(0, 1)
 		}
 
 		b.StopTimer()
@@ -104,9 +104,9 @@ func Run_PutGet_Trim(b *testing.B, eventSize int) {
 
 		//b.StartTimer()
 		//for i := 0; i < 20; i++ {
-		eventSet, _ = eventSet.Put(event)
+		eventSet, _ = eventSet.Put(event, event, event)
 		//}
-		eventSet.Get()
+		//eventSet.GetSlice(0, 1)
 		//b.StopTimer()
 	}
 }
@@ -136,7 +136,7 @@ func Run_PutGet_Trim2(b *testing.B, eventSize int) {
 		//}
 
 		eventSet, _ = eventSet.Put(event)
-		eventSet.Get()
+		eventSet.GetSlice(0, 1)
 	}
 }
 
@@ -176,7 +176,7 @@ func Run_PutGet(b *testing.B, eventSize int, batchSize int, batchCount int) {
 			//eventSet.Put(batch...)
 		}
 
-		eventSet.Get()
+		eventSet.GetSlice(0, 1)
 		//b.StopTimer()
 	}
 }
@@ -222,7 +222,7 @@ func Run_PutGet2(b *testing.B, eventSize int, batchSize int, batchCount int) {
 		}
 
 		b.StartTimer()
-		_, err := eventSet.Get()
+		_, err := eventSet.GetSlice(0, 1)
 		//b.Logf("Read: %d", len(events))
 		b.StopTimer()
 		if err != nil {

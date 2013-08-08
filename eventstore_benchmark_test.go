@@ -23,6 +23,7 @@ const gcTime = 10000
 
 var gcTimer int
 
+//func Run_ES_PutGet(b *testing.B, )
 /*
 gcTimer++
 if gcTimer == gcTime {

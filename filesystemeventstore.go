@@ -60,7 +60,8 @@ func (kindPartition *FileSystemESKindPartition) Id(id uint64) AggregatePartition
 }
 
 func (aggregatePartition *FileSystemESAggregatePartition) Get() (*EventSet, error) {
-	return aggregatePartition.events.Get()
+	//return aggregatePartition.events.Get()
+	return aggregatePartition.events, nil
 }
 
 func (aggregatePartition *FileSystemESAggregatePartition) GetSlice(startIndex int, endIndex int) (*EventSet, error) {

@@ -101,12 +101,9 @@ func (set *EventSet) DataAt(index int) []byte {
 	return set.events[index]
 }
 
-func (set *EventSet) Get() (*EventSet, error) {
-	return set.GetSlice(0, MaxInt)
-}
-
 func (set *EventSet) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
 	headerLength := len(set.headers)
+
 	// Validate inputs
 	if startIndex < 0 || endIndex < 0 || startIndex >= endIndex || startIndex > headerLength {
 		return nil, errors.New("Either start or end index is out of range")
@@ -118,6 +115,11 @@ func (set *EventSet) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
 	// End out of range so move it back
 	if endIndex >= headerLength {
 		endIndex = headerLength
+	}
+
+	// If the slice size is the whole set then just return it
+	if startIndex == 0 && endIndex == headerLength {
+		return set, nil
 	}
 
 	dataLength := cap(set.eventData)

@@ -80,7 +80,7 @@ func Test_Should_return_empty_event_slice_for_empty_set(t *testing.T) {
 	eventSet := goes.NewEmptyEventSet()
 
 	// Act
-	events, err := eventSet.Get()
+	events, err := eventSet.GetSlice(0, 1)
 
 	// Assert
 	IsNil(t, err, "Should have allowed read from empty set")
@@ -185,7 +185,7 @@ func Test_Should_retrieve_from_multiple_puts(t *testing.T) {
 	}...)
 
 	// Act
-	events, err := eventSet.Get()
+	events, err := eventSet.GetSlice(0, 6)
 
 	// Assert
 	IsNil(t, err, "Should not have failed Get")
@@ -209,11 +209,11 @@ func Test_Should_expand_headers(t *testing.T) {
 	eventSet, _ = eventSet.Put(batch[:]...)
 
 	// Act
-	events, err := eventSet.Get()
+	events, err := eventSet.GetSlice(0, goes.HEADER_SLICE_SIZE)
 
 	// Assert
 	IsNil(t, err, "Should not have failed Get")
-	AreEqual(t, len(batch)+1, events.Count(), "Should have brought back all records")
+	AreEqual(t, len(batch), events.Count(), "Should have brought back all records")
 	AreEqual(t, uint16(0), events.EventTypeAt(1), "Should have retained initial headers")
 	AreEqual(t, uint16(3), events.EventTypeAt(4), "Should have appended additional headers")
 }
