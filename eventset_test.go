@@ -200,7 +200,7 @@ func Test_Should_expand_headers(t *testing.T) {
 	eventSet, _ = eventSet.Put([]goes.Event{
 		{1, MakeByteSlice(10)},
 	}...)
-	//log.Printf("Act: %v", eventSet)
+
 	// Act
 	batch := new([goes.HEADER_SLICE_SIZE]goes.Event)
 	for i := 0; i < goes.HEADER_SLICE_SIZE; i++ {
@@ -228,7 +228,7 @@ func Test_Should_return_err_if_event_is_too_large(t *testing.T) {
 		{2, MakeByteSlice(12000)},
 		{3, MakeByteSlice(140000)}, // make it 1400000
 	}...)
-	//t.Fail()
+
 	// Assert
 	IsNotNil(t, err, "Should have throw event too large error")
 }
@@ -240,12 +240,10 @@ func Test_Should_be_able_to_resize_header_slice(t *testing.T) {
 	for i := range events {
 		events[i] = goes.Event{uint16(i), MakeByteSlice(i)}
 	}
-	//log.Printf("Before put: % v", eventSet)
 
 	// Act
 	eventSet, _ = eventSet.Put(events...)
 
-	//log.Printf("After put: % v", eventSet)
 	// Assert
 	IsNotNil(t, eventSet, "Should have returned valid event set")
 }

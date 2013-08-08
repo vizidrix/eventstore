@@ -1,3 +1,13 @@
+Create an EventSet, Put a single event of size X into it, Read the event back out
+
+Benchmark_EventSet_PutGetTrim_10byte	 1000000	      1131 ns/op	    3010 B/op	       6 allocs/op
+Benchmark_EventSet_PutGetTrim_1024byte	 1000000	      1264 ns/op	    3011 B/op	       6 allocs/op
+Benchmark_EventSet_PutGetTrim_4096byte	  500000	      3994 ns/op	   17246 B/op	       7 allocs/op
+Benchmark_EventSet_PutGetTrim_16384byte	  200000	     10554 ns/op	   56733 B/op	       7 allocs/op
+
+
+
+
 ReMerged the Put logic
 
 Benchmark_EventSet_PutGet_10byte_b01xc00001	10000000	       140 ns/op	      50 B/op	       1 allocs/op
