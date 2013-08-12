@@ -1,11 +1,11 @@
 package eventstore
 
 /*
-//# include <assert.h>
-//# include <stdint.h>
-//# include <string.h>
-//# include <stdio.h>
-//# include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 void Copy_memory_loop(void* dest, void* src, int length) {
 	unsigned char* cdest = (unsigned char*) dest;
@@ -29,7 +29,7 @@ void write_memory_rep_stosq(void* dest, void* src, int length) {
 
 */
 
-import "C"
+//import "C"
 
 import (
 	"errors"

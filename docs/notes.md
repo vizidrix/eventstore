@@ -34,6 +34,12 @@ Independent bits of command validation separated so it can be run at the boundar
 
 Make a memory map impl to test against also
 
+* http://thinkbeforecoding.com/
+Decide:
+Command -> State -> Event list
+ApplyStateChange:
+State -> Event -> State
+
 
 Constraints:
 - Events are immutable
@@ -47,6 +53,15 @@ Constraints:
 
   Event Format
 
+Folder per Domain
+	-> Index file
+		[ 8 byte Id + 4 byte Header offset + 4 byte Header CRC ]
+		[ 8 byte header per event ]
+	-> Data file per Aggregate Type partition (64Mb to start - 64Gb someday?)
+
+Thoughts from LMDB:
+Option for setting fixed key (required here) and also flag for fixed data size which could eliminate the LEN in header
+xxx
 Folder per Domain
 	-> Folder per Aggregate Type
 		-> File per Aggregate Id

@@ -92,7 +92,9 @@ func Run_PutGet_Trim(b *testing.B, eventSize int) {
 	*/
 	//eventSet := goes.NewEmptyEventSet()
 	b.ResetTimer()
+	b.StopTimer()
 	for index := 0; index < b.N; index++ {
+		//b.StopTimer()
 		eventSet := goes.NewEmptyEventSet()
 
 		//for i := 0; i < 10; i++ {
@@ -103,11 +105,15 @@ func Run_PutGet_Trim(b *testing.B, eventSize int) {
 		//}
 
 		//b.StartTimer()
-		//for i := 0; i < 20; i++ {
-		eventSet, _ = eventSet.Put(event, event, event)
-		//}
-		//eventSet.GetSlice(0, 1)
-		//b.StopTimer()
+		for i := 0; i < 20; i++ {
+			eventSet, _ = eventSet.Put(event) //, event, event)
+		}
+		b.StartTimer()
+
+		for i := 0; i < 100; i++ {
+			eventSet.GetSlice(5, 15)
+		}
+		b.StopTimer()
 	}
 }
 

@@ -37,7 +37,9 @@ type IFile interface {
 type IDirectory interface {
 }
 
-// osFS implements fileSystem using the local disk.
+// https://groups.google.com/forum/#!topic/golang-nuts/Sq7ieE3flxc
+
+// osFileStore implements fileSystem using the local disk.
 type osFileStore struct{}
 
 func (osFileStore) IsNotExist(err error) bool                 { return os.IsNotExist(err) }
@@ -47,8 +49,12 @@ func (osFileStore) Open(name string) (*os.File, error)        { return os.Open(n
 func (osFileStore) Stat(name string) (os.FileInfo, error)     { return os.Stat(name) }
 
 const (
-	Append_WriteOnly          = os.O_APPEND | os.O_WRONLY
-	Create_Truncate_WriteOnly = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+	APPEND_WRITEONLY          = os.O_APPEND | os.O_WRONLY
+	CREATE_TRUNCATE_WRITEONLY = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+	CREATE_WRITEONLY          = os.O_CREATE | os.O_WRONLY
+
+	FILE_PERMS1 = 0666
+	DIR_PERMS1  = 0755
 )
 
 /*
@@ -108,7 +114,7 @@ func makeDirectory(path string) (IFile, error) {
 			// file does not exist
 			log.Println("Path doesn't exist")
 			//var perm uint32 = 0755
-			if err := fs.Mkdir(path, 0755); err != nil {
+			if err := fs.Mkdir(path, DIR_PERMS1); err != nil {
 				log.Println("Unable to create dir: %s", err)
 				return nil, err
 			}

@@ -8,6 +8,7 @@ import (
 
 var table *crc32.Table = crc32.MakeTable(crc32.Castagnoli)
 
+// https://github.com/basho/bitcask/blob/master/c_src/murmurhash.c
 func MakeCRC(data []byte) uint32 {
 	return crc32.Checksum(data, table)
 }

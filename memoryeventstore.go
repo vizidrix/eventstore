@@ -60,7 +60,6 @@ func (kindPartition *MemoryESKindPartition) Id(id uint64) AggregatePartitioner {
 }
 
 func (aggregatePartition *MemoryESAggregatePartition) Get() (*EventSet, error) {
-	//return aggregatePartition.events.Get()
 	return aggregatePartition.events, nil
 }
 
