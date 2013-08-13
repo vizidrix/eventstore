@@ -36,6 +36,12 @@ type VisitorLogged struct {
 	Referrer        string
 }
 
+func Test_Should(t *testing.T) {
+	goes.Connect("fs://eventstore/")
+
+	t.Fail()
+}
+
 func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing.T) {
 	// Arrange
 	path := "mem://"

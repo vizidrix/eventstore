@@ -1,9 +1,4 @@
-#ifndef _GODB_H_
-#define _GODB_H_
 
-#include <stdarg.h> /* Needed for the definition of va_list */
-#include <stdlib.h>
-#include <stdint.h>
 
 //#include <sys/types.h>
 //#include <string.h>
@@ -47,37 +42,7 @@ typedef struct {
 } GODB_value;
 */
 	
-#define GODB_VERSION_MAJOR	0						/** Library major version */
-#define GODB_VERSION_MINOR	1 						/** Library minor version */
-#define GODB_VERSION_PATCH	0 						/** Library patch version */
-#define GODB_VERSION_DATE	"January 10, 2013" 		/** The release date of this library version */
 
-	/** Combine args a,b,c into a single integer for easy version comparisons */
-#define GODB_VERSION_INT(a,b,c)	(((a) << 24) | ((b) << 16) | (c))
-	/** A stringifier for the version info */
-#define GODB_VERSION_STR(a,b,c,d)	"GODB " #a "." #b "." #c ": (" d ")"
-
-	/** The full library version as a single integer */
-#define GODB_VERSION_FULL													\
-	GODB_VERSION_INT(														\
-		GODB_VERSION_MAJOR,													\
-		GODB_VERSION_MINOR,													\
-		GODB_VERSION_PATCH);											
-
-	/** The full library version as a C string */
-#define	GODB_VERSION_STRING													\
-	GODB_VERSION_STR(														\
-		GODB_VERSION_MAJOR,													\
-		GODB_VERSION_MINOR,													\
-		GODB_VERSION_PATCH,													\
-		GODB_VERSION_DATE);
-
-char *godb_version(int *major, int *minor, int *patch);		/** Return the library version info. */
-int temp(int);
-
-#include "godb_database.h"
-
-#endif /* _GODB_H_ */
 //typedef	mode_t	godb_mode_t;
 
 	/** An abstraction for a file handle. */

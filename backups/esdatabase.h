@@ -1,7 +1,7 @@
-#ifndef godb_database_h
-#define godb_database_h
+#ifndef _ESDATABASE_H_
+#define _ESDATABASE_H_
 
-#include "godb.h"
+#include "database.h"
 //#include <sys/types.h>
 //#include <stdint.h>
 
@@ -159,7 +159,7 @@ enum godb_flags
 
 
 
-#endif
+#endif // _ESDATABASE_H_
 
 /** @brief Create an MDB environment handle.
 	 *
