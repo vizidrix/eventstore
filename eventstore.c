@@ -17,11 +17,13 @@ char *es_version(int *major, int *minor, int *patch)
 #define ES_DATA_FILE_NAME 			"es_data_file_%02d.esdb.txt"
 #define ES_DATA_GEN_FILE_NAME		"es_data_gen_file_%02d.esdb.txt"
 
+/*
 #define ES_SETTINGS_FILE_NAME_SIZE			sizeof(ES_SETTINGS_FILE_NAME) - 1
 #define ES_HEADER_FILE_NAME_SIZE 			sizeof(ES_HEADER_FILE_NAME) - 1
 #define ES_HEADER_SWAP_FILE_NAME_SIZE		sizeof(ES_HEADER_SWAP_FILE_NAME) - 1
 #define ES_DATA_FILE_NAME_SIZE				sizeof(ES_DATA_FILE_NAME) - 1
 #define ES_DATA_GEN_FILE_NAME_SIZE			sizeof(ES_DATA_GEN_FILE_NAME) - 1
+*/
 
 /** Stamp to identify a file as ES valid and check for byte oder */
 #define ES_FILE_KEY			"ES_HEADER_V_0x0001_DATA_V_0x0001"
@@ -89,9 +91,25 @@ char *es_version(int *major, int *minor, int *patch)
 #	define ES_CLOEXEC		0
 #endif
 
-#define READ_CREATE 			O_READ | O_CREAT | ES_CLOEXEC
-#define READ_WRITE_CREATE		O_RDWR | O_CREAT | ES_CLOEXEC
+#define FLAGS_READ_ONLY 				O_RDONLY
+#define FLAGS_WRITE_ONLY				O_WRONLY
+#define FLAGS_TRUNK						O_TRUNC
+#define FLAGS_READ_CREATE 				O_READ | O_CREAT | ES_CLOEXEC
+#define FLAGS_READ_WRITE_CREATE			O_RDWR | O_CREAT | ES_CLOEXEC
 
+#define MODE_READ 						0444
+#define MODE_WRITE 						0222
+#define MODE_EXEC 						0111
+#define MODE_READ_WRITE 				MODE_READ | MODE_WRITE
+#define MODE_READ_WRITE_EXEC			MODE_READ | MODE_WRITE | MODE_EXEC
+
+#define __IO_BUFSIZE (4096) /*reasonable buffer size based on pipe buffers*/
+ 
+#ifdef HAVE_SPLICE
+#define do_copy spliced_copy
+#else
+#define do_copy std_copy
+#endif
 
 #define HANDLE 							int 						/** An abstraction for a file handle. */
 #define INVALID_HANDLE_VALUE 			(-1)						/** A value for an invalid file handle. */
@@ -141,15 +159,12 @@ enum ES_flags
 	,	F_NO_SYNC_HEADER		= 1 << 4 	/* Don't fsync when writing to header metadata */
 	};
 
-typedef struct ES_settings ES_settings;
 struct ES_settings {
 	unsigned char*		identifier[ES_FILE_KEY_SIZE];
  	//unsigned int			header_version;
 	//unsigned int			data_version;
 };
 
-	/** The EventStore database. */
-typedef struct ES_database ES_database;
 struct ES_database {
 	pid_t			pid;				/** < Process ID of the database */
 	uint32_t		flags;				/** < @ref Environment flags */
@@ -172,8 +187,17 @@ struct ES_database {
 	// Buffer(s)
 };
 // Disposal happens in close: mdb_env_close - Line: 4164
+	
+struct ES_domain {
+	uint64_t		id;			// 64 bit hash of domain name
+	char			name[32];	// Max domain name is 32 chars
+};
 
-
+struct ES_kind {
+	ES_domain*		domain;		// Domain which contains this kind
+	uint64_t		id;			// 64 bit hash of kind name
+	char 			name[32];	// Max kind name is 32 chars
+};
 
 //HANDLE eventstore_open_file(char *path, int file_mode);
 
@@ -181,32 +205,14 @@ struct ES_database {
 
 /****************************************************************************
  *
- *		Method Definitions
+ *		General File Method Definitions
  *
  ****************************************************************************/
- 
- void es_write_settings_info(HANDLE handle) {
- 	ftruncate(handle, ES_FILE_KEY_SIZE);
- 	ssize_t count = write(handle, ES_FILE_KEY, ES_FILE_KEY_SIZE);
 
- 	if (count != ES_FILE_KEY_SIZE) {
- 		perror("Write to settings file failed");
- 	}
-}
-
-int es_check_settings_info(HANDLE handle) {
-	char data[ES_FILE_KEY_SIZE];
-	lseek(handle, 0, SEEK_SET);
-	read(handle, data, ES_FILE_KEY_SIZE);
-	if (strcmp(data, ES_FILE_KEY) != 0) {
-		perror("File key mismatch");
-		return 1;
-	}
-
-	return 0;
-}
-
-int es_open_file_handle(ES_file_handle* handle, char* dir_path, size_t dir_path_len, char* file_name, int file_name_len) {
+int es_open_file_handle(ES_file_handle* handle, char* dir_path, char* file_name, int flags, int mode) {
+	// Get the size of the base path and file for str cat operations
+	size_t dir_path_len = strlen(dir_path) + 1;
+	size_t file_name_len = strlen(file_name) + 1;
 	// Build the data file path by concat dir_path + file_name
 	handle->path = (char*)malloc(dir_path_len + file_name_len);
 	strcpy(handle->path, dir_path);
@@ -216,7 +222,8 @@ int es_open_file_handle(ES_file_handle* handle, char* dir_path, size_t dir_path_
 	remove(handle->path);
 #endif
 	// Use the constructed path to try and open the db files
-	handle->file_handle = open(handle->path, READ_WRITE_CREATE, 0666);
+	//handle->file_handle = open(handle->path, READ_WRITE_CREATE, 0666);
+	handle->file_handle = open(handle->path, flags, mode);
 	// Make sure the file opened successfully
 	if (handle->file_handle == INVALID_HANDLE_VALUE) {
 		perror("error opening file");
@@ -234,14 +241,14 @@ int es_open_file_handle(ES_file_handle* handle, char* dir_path, size_t dir_path_
 	}
 	// Copy the size up to the structure (for easier access)
 	handle->file_size = handle->file_info.st_size;
-	DebugPrint("Loaded file [%s] Size: %d Mb", handle->path, handle->file_size >> 20);
+	//DebugPrint("Loaded file [%s] Size: %d Mb", handle->path, handle->file_size >> 20);
 
 	return 0;
 }
 
 int es_verify_file_size(ES_file_handle* handle, off_t file_size) {
 	if (handle->file_size == 0) {
-		DebugPrint("Resizing to %d Mb", file_size >> 20);
+		//DebugPrint("Resizing to %d Mb", file_size >> 20);
 		ftruncate(handle->file_handle, file_size);
 		handle->file_size = file_size;
 	}
@@ -272,69 +279,124 @@ int es_open_mmap_handle(ES_file_handle* handle, off_t map_size) {
 // DO_WRITE
 // mdb_env_copyfd
 
+/****************************************************************************
+ *
+ *		ESDB Specific Method Definitions
+ *
+ ****************************************************************************/
+ 
+ void es_write_settings_info(HANDLE handle) {
+ 	ftruncate(handle, ES_FILE_KEY_SIZE);
+ 	ssize_t count = write(handle, ES_FILE_KEY, ES_FILE_KEY_SIZE);
 
+ 	if (count != ES_FILE_KEY_SIZE) {
+ 		perror("Write to settings file failed");
+ 	}
+}
 
-void es_open(char *path) { //, ES_flags *flags) {
+int es_check_settings_info(HANDLE handle) {
+	char data[ES_FILE_KEY_SIZE];
+	lseek(handle, 0, SEEK_SET);
+	read(handle, data, ES_FILE_KEY_SIZE);
+	if (strcmp(data, ES_FILE_KEY) != 0) {
+		perror("File key mismatch");
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ES_domain* es_domain(ES_database* database, char[32] domain_name) {
+
+}
+
+// Partition data by two levels, domain and kind, and append into buckets by id
+void put(ES_database* database, uint64_t domain, uint64_t kind, uint64_t id, void* data) {
+
+}
+
+void get(ES_database* database, uint64_t domain, uint64_t kind, uint64_t id) {
+
+}
+*/
+
+void es_open(char* path) {
+	ES_database *database = 0;
+	int result = es_open_db(&database, path);
+}
+
+int es_open_db(ES_database **database, char *path) { //, ES_flags *flags) {
 	// Make the database struct instance
-	ES_database* database = malloc(sizeof(ES_database));
+	*database = malloc(sizeof(ES_database));
 	
-	// Get the size of the base path for str cat operations
-	size_t path_size = strlen(path) + 1;
+	
 	// Populate file handles for all files
 	int op_result = 0;
 
 	// Malloc a copy of the file handle structure for each db file, open it, validate it, populate if needed
 
-	database->settings_file = malloc(sizeof(ES_file_handle));
-	op_result = es_open_file_handle(database->settings_file, path, path_size, ES_SETTINGS_FILE_NAME, ES_SETTINGS_FILE_NAME_SIZE);
-	if (op_result > 0) { perror("Error opening settings file"); return; }
+	(*database)->settings_file = malloc(sizeof(ES_file_handle));
+	op_result = es_open_file_handle((*database)->settings_file, path, ES_SETTINGS_FILE_NAME, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);
+	if (op_result > 0) { perror("Error opening settings file"); return ES_SETTINGS_FILE_NOTFOUND; }
 	// Validation checks for the settings file
-	if (database->settings_file->file_size != sizeof(ES_settings)) {
-		es_write_settings_info(database->settings_file->file_handle);
+	if ((*database)->settings_file->file_size != sizeof(ES_settings)) {
+		es_write_settings_info((*database)->settings_file->file_handle);
 	}
-	if (es_check_settings_info(database->settings_file->file_handle) > 0) {
+	if (es_check_settings_info((*database)->settings_file->file_handle) > 0) {
 		DebugPrint("Error in settings file");
-		return;
+		return ES_SETTINGS_FILE_INVALID;
 	}
 	DebugPrint("Settings file loaded");
 
 
-	database->header_file = malloc(sizeof(ES_file_handle));
-	op_result = es_open_file_handle(database->header_file, path, path_size, ES_HEADER_FILE_NAME, ES_HEADER_FILE_NAME_SIZE);
-	if (op_result > 0) { perror("Error opening header file"); return; }
-	op_result = es_verify_file_size(database->header_file, 1 << 20); // 1 MB
-	if (op_result > 0) { perror("Error opening header file"); return; }
+	(*database)->header_file = malloc(sizeof(ES_file_handle));
+	op_result = es_open_file_handle((*database)->header_file, path, ES_HEADER_FILE_NAME, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);
+	if (op_result > 0) { perror("Error opening header file"); return ES_HEADER_FILE_NOTFOUND; }
+	op_result = es_verify_file_size((*database)->header_file, 1 << 20); // 1 MB
+	if (op_result > 0) { perror("Error opening header file"); return ES_HEADER_FILE_INVALID; }
 	//op_result = eventstore_open_mmap_handle(database->header_file, 1 << 20); // 1 MB
 	//if (op_result > 0) { perror("Error opening header file"); return; }
 	//database->header_swap_file = malloc(sizeof(ES_file_handle));
 	DebugPrint("Header file loaded");
 
 	int i = 0;
-	char data_file_name[ES_DATA_FILE_NAME_SIZE];
-	/*char* data_file_name = DATA_FILE_NAME;
-	data_file_name[13] = '%';
-	data_file_name[14] = 'd';*/
+	char data_file_name[sizeof(ES_DATA_FILE_NAME) - 1];
 	for (i = 0; i < 16; i++) {
-		database->data_files[i] = malloc(sizeof(ES_file_handle));
+		(*database)->data_files[i] = malloc(sizeof(ES_file_handle));
 
 		sprintf(data_file_name, ES_DATA_FILE_NAME, i);
 		//DebugPrint("Making data file: %s", data_file_name);
-		op_result = es_open_file_handle(database->data_files[i], path, path_size, data_file_name, ES_DATA_FILE_NAME_SIZE);
-		if (op_result > 0) { perror("Error opening data file"); return; }
+		op_result = es_open_file_handle((*database)->data_files[i], path, data_file_name, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);
+		if (op_result > 0) { perror("Error opening data file"); return ES_DATA_FILE_NOTFOUND - i; }
 
 
-		op_result = es_verify_file_size(database->data_files[i], ((off_t)1) << 32); // 1 GB * 4 = 2 ^ (30 + 2)
-		if (op_result > 0) { perror("Error opening data file"); return; }
+		op_result = es_verify_file_size((*database)->data_files[i], ((off_t)1) << 32); // 1 GB * 4 = 2 ^ (30 + 2)
+		if (op_result > 0) { perror("Error opening data file"); return ES_DATA_FILE_INVALID - i; }
 		//op_result = eventstore_open_mmap_handle(database->data_file, 1 << 36); // 1 GB * 32 = 2 ^ (30 + 6)
 		//if (op_result > 0) { perror("Error opening data file"); return; }
 	}
+	//es_open_mmap_handle(database->settings_file, database->settings_file->file_size);
+	//es_open_mmap_handle(database->data_files[0], database->data_files[0]->file_size);
+
+
+	//do_copy(database->data_files[0]->file_handle, database->data_files[0]->file_handle);
 	DebugPrint("Data files loaded");
 
 	// op_result = eventstore_open_file_handle(database->header_swap_file, path, path_size, HEADER_SWAP_FILE_NAME, HEADER_SWAP_FILE_NAME_SIZE);
 	// if (op_result > 0) { perror("Error opening header swap file"); return; }
 
 	errno = 0;
-	return;
+	return ES_SUCCESS;
+}
+
+//void es_close()
+
+/****************************************************************************
+ *
+ *		Commented out prev versions
+ *
+ ****************************************************************************/
 
 	//return database;
 	//ES_file_handle* header_file = open_file_handle(path, path_size, HEADER_FILE_NAME, HEADER_FILE_NAME_SIZE);
@@ -372,25 +434,6 @@ void es_open(char *path) { //, ES_flags *flags) {
 	free(header_file_path);
 	free(data_file_path);*/
 
-}
-
-
-
-
-
-HANDLE eventstore_open_file(char *path, int file_mode) {
-	HANDLE file_handle;
-	off_t file_size;
-
-	file_handle = open(path, READ_WRITE_CREATE, file_mode);
-
-	// Unable to open file handle
-	if (file_handle == INVALID_HANDLE_VALUE) {
-		return INVALID_HANDLE_VALUE; // Line 3620 in mdb.c
-	}
-
-	return file_handle;
-}
 
 
 /*
@@ -428,7 +471,7 @@ mdb_put(MDB_txn *txn, MDB_dbi dbi,
 
 
 
-
+/*
 ES_file_handle* open_file_handle2(char* dir_path, size_t dir_path_len, char* file_name, int file_name_len) {
 	ES_file_handle* handle = malloc(sizeof(ES_file_handle));
 	// Build the data file path by concat dir_path + file_name
@@ -497,5 +540,5 @@ ES_file_handle* open_file_handle2(char* dir_path, size_t dir_path_len, char* fil
 
 	return handle;
 }
-
+*/
 

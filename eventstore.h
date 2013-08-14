@@ -20,21 +20,17 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+#include <sys/socket.h>
+
 /*
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
 
 #include <assert.h>
-#include <errno.h>
 #include <limits.h>
 #include <stddef.h>
 #include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 */
 	
@@ -70,21 +66,46 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 *	Avoid conflict with BerkelyDB (-30800 to -30999) and MDB (-30799 to -30783)
 *	@{
 */
-#define ES_SUCCESS 				0 							/** Successful result */
-#define ES_ERROR				(-30600)					/** Generic error */
-#define ES_NOTFOUND 			(ES_ERROR - 1) 		/** Key not found during get (EOF) */
-#define ES_CORRUPTED 			(ES_ERROR - 2)		/** CheckSum failed */
-#define ES_PANIC 				(ES_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
-#define ES_VERSION_MISMATCH 	(ES_ERROR - 4) 		/** Environment version mismatch */
-#define ES_INVALID 				(ES_ERROR - 5)		/** Invalid ES file */
-#define ES_MAP_FULL				(ES_ERROR - 6)		/** Environment mapsize reached */
-#define ES_PAGE_FULL			(ES_ERROR - 7)		/** Page ran out of space - internal error */
-#define ES_MAP_RESIZED			(ES_ERROR - 8)		/** Database contents grew benyond environment mapsize */
-#define ES_INCOMPATIBLE			(ES_ERROR - 9)		/** Database flags changes (or would change) */
+#define ES_SUCCESS 						0 					/** Successful result */
+#define ES_ERROR						(-30600)			/** Generic error */
+
+#define ES_NOTFOUND 					(ES_ERROR - 1) 		/** Key not found during get (EOF) */
+#define ES_CORRUPTED 					(ES_ERROR - 2)		/** CheckSum failed */
+#define ES_PANIC 						(ES_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
+#define ES_VERSION_MISMATCH 			(ES_ERROR - 4) 		/** Environment version mismatch */
+#define ES_MAP_FULL						(ES_ERROR - 5)		/** Environment mapsize reached */
+#define ES_PAGE_FULL					(ES_ERROR - 6)		/** Page ran out of space - internal error */
+#define ES_MAP_RESIZED					(ES_ERROR - 7)		/** Database contents grew benyond environment mapsize */
+#define ES_INCOMPATIBLE					(ES_ERROR - 8)		/** Database flags changes (or would change) */
+
+#define ES_FILE_NOTFOUND 				(ES_ERROR - 100)	/** ES file was not found */
+#define ES_FILE_INVALID 				(ES_ERROR - 200)	/** ES file is invalid */
+
+#define ES_SETTINGS_FILE_NOTFOUND 		(ES_FILE_NOTFOUND - 1)	/** ES Settings file was not found */
+#define ES_SETTINGS_FILE_INVALID 		(ES_FILE_INVALID - 1)	/** ES Settings file is invalid */
+#define ES_HEADER_FILE_NOTFOUND 		(ES_FILE_NOTFOUND - 2)	/** ES Header file was not found */
+#define ES_HEADER_FILE_INVALID 			(ES_FILE_INVALID - 2)	/** ES Header file is invalid */
+#define ES_DATA_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 10)	/** ES Data file was not found */
+#define ES_DATA_FILE_INVALID 			(ES_FILE_INVALID - 10)	/** ES Data file is invalid */
+#define ES_GEN_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 30)	/** ES Generation file was not found */
+#define ES_GEN_FILE_INVALID 			(ES_FILE_INVALID - 30)	/** ES Generation file is invalid */
+
 /** @} */
 
+	/** The EventStore database settings structure. */
+typedef struct ES_settings ES_settings;
+
+	/** The EventStore database. */
+typedef struct ES_database ES_database;
+
+	/** A domain creates a top level partition separating internal headers */
+typedef struct ES_domain ES_domain;
+
+	/** A kind represents a type of Aggregate in the event store */
+typedef struct ES_kind ES_kind;
 
 void es_open(char* path);
+//int es_open(ES_database** database, char* path);
 
 
 
