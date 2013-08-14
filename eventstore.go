@@ -79,7 +79,7 @@ type EventStore struct {
 func (es *EventStore) Connect(path string) {
 	str := C.CString(path)
 	defer C.free(unsafe.Pointer(str))
-	_, err := C.eventstore_open(str)
+	_, err := C.es_open(str)
 	if err != nil {
 		log.Printf("Error opening database: %s", err)
 	}

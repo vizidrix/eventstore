@@ -1,5 +1,5 @@
-#ifndef _EVENTSTORE_H_
-#define _EVENTSTORE_H_
+#ifndef _ES_H_
+#define _ES_H_
 
 #include <stdarg.h> /* Needed for the definition of va_list */
 #include <stdlib.h>
@@ -38,58 +38,58 @@
 
 */
 	
-#define EVENTSTORE_VERSION_MAJOR	0						/** Library major version */
-#define EVENTSTORE_VERSION_MINOR	1 						/** Library minor version */
-#define EVENTSTORE_VERSION_PATCH	0 						/** Library patch version */
-#define EVENTSTORE_VERSION_DATE	"January 10, 2013" 			/** The release date of this library version */
+#define ES_VERSION_MAJOR	0						/** Library major version */
+#define ES_VERSION_MINOR	1 						/** Library minor version */
+#define ES_VERSION_PATCH	0 						/** Library patch version */
+#define ES_VERSION_DATE	"January 10, 2013" 			/** The release date of this library version */
 
 	/** Combine args a,b,c into a single integer for easy version comparisons */
-#define EVENTSTORE_VERSION_INT(a,b,c)	(((a) << 24) | ((b) << 16) | (c))
+#define ES_VERSION_INT(a,b,c)	(((a) << 24) | ((b) << 16) | (c))
 	/** A stringifier for the version info */
-#define EVENTSTORE_VERSION_STR(a,b,c,d)	"EVENTSTORE " #a "." #b "." #c ": (" d ")"
+#define ES_VERSION_STR(a,b,c,d)	"ES " #a "." #b "." #c ": (" d ")"
 
 	/** The full library version as a single integer */
-#define EVENTSTORE_VERSION_FULL														\
-	EVENTSTORE_VERSION_INT(															\
-		EVENTSTORE_VERSION_MAJOR,													\
-		EVENTSTORE_VERSION_MINOR,													\
-		EVENTSTORE_VERSION_PATCH);											
+#define ES_VERSION_FULL														\
+	ES_VERSION_INT(															\
+		ES_VERSION_MAJOR,													\
+		ES_VERSION_MINOR,													\
+		ES_VERSION_PATCH);											
 
 	/** The full library version as a C string */
-#define	EVENTSTORE_VERSION_STRING													\
-	EVENTSTORE_VERSION_STR(															\
-		EVENTSTORE_VERSION_MAJOR,													\
-		EVENTSTORE_VERSION_MINOR,													\
-		EVENTSTORE_VERSION_PATCH,													\
-		EVENTSTORE_VERSION_DATE);
+#define	ES_VERSION_STRING													\
+	ES_VERSION_STR(															\
+		ES_VERSION_MAJOR,													\
+		ES_VERSION_MINOR,													\
+		ES_VERSION_PATCH,													\
+		ES_VERSION_DATE);
 
-char *eventstore_version(int *major, int *minor, int *patch);		/** Return the library version info. */
+char *es_version(int *major, int *minor, int *patch);		/** Return the library version info. */
 
 /** @ defgroup errors 	Return Codes
 *
 *	Avoid conflict with BerkelyDB (-30800 to -30999) and MDB (-30799 to -30783)
 *	@{
 */
-#define EVENTSTORE_SUCCESS 				0 							/** Successful result */
-#define EVENTSTORE_ERROR				(-30600)					/** Generic error */
-#define EVENTSTORE_NOTFOUND 			(EVENTSTORE_ERROR - 1) 		/** Key not found during get (EOF) */
-#define EVENTSTORE_CORRUPTED 			(EVENTSTORE_ERROR - 2)		/** CheckSum failed */
-#define EVENTSTORE_PANIC 				(EVENTSTORE_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
-#define EVENTSTORE_VERSION_MISMATCH 	(EVENTSTORE_ERROR - 4) 		/** Environment version mismatch */
-#define EVENTSTORE_INVALID 				(EVENTSTORE_ERROR - 5)		/** Invalid EVENTSTORE file */
-#define EVENTSTORE_MAP_FULL				(EVENTSTORE_ERROR - 6)		/** Environment mapsize reached */
-#define EVENTSTORE_PAGE_FULL			(EVENTSTORE_ERROR - 7)		/** Page ran out of space - internal error */
-#define EVENTSTORE_MAP_RESIZED			(EVENTSTORE_ERROR - 8)		/** Database contents grew benyond environment mapsize */
-#define EVENTSTORE_INCOMPATIBLE			(EVENTSTORE_ERROR - 9)		/** Database flags changes (or would change) */
+#define ES_SUCCESS 				0 							/** Successful result */
+#define ES_ERROR				(-30600)					/** Generic error */
+#define ES_NOTFOUND 			(ES_ERROR - 1) 		/** Key not found during get (EOF) */
+#define ES_CORRUPTED 			(ES_ERROR - 2)		/** CheckSum failed */
+#define ES_PANIC 				(ES_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
+#define ES_VERSION_MISMATCH 	(ES_ERROR - 4) 		/** Environment version mismatch */
+#define ES_INVALID 				(ES_ERROR - 5)		/** Invalid ES file */
+#define ES_MAP_FULL				(ES_ERROR - 6)		/** Environment mapsize reached */
+#define ES_PAGE_FULL			(ES_ERROR - 7)		/** Page ran out of space - internal error */
+#define ES_MAP_RESIZED			(ES_ERROR - 8)		/** Database contents grew benyond environment mapsize */
+#define ES_INCOMPATIBLE			(ES_ERROR - 9)		/** Database flags changes (or would change) */
 /** @} */
 
 
-void eventstore_open(char* path);
+void es_open(char* path);
 
 
 
 
 
 
-#endif /* _EVENTSTORE_H_ */
+#endif /* _ES_H_ */
 
