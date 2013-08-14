@@ -140,8 +140,9 @@ void DebugPrint(const char* format, ...) {
  *		Type Definitions
  *
  ****************************************************************************/
- 
- typedef struct {
+
+	/** Abstraction which wraps both file handle and memmap handles */
+typedef struct ES_file_handle {
  	int 			error;			/** < Placeholder for error codes related to the file handle */
 	char *			path;			/** < Physical path to the file referenced */
 	HANDLE 			file_handle;	/** < Handle to the os file */
@@ -150,7 +151,7 @@ void DebugPrint(const char* format, ...) {
 	struct stat 	file_info;		/** < File info from the os */
 } ES_file_handle;
 
-/** Flag values for eventstore.flags field */
+	/** Flag values for eventstore.flags field */
 enum ES_flags
 	{	F_OPEN_EXISTING			= 1 << 0
 	,	F_CREATE_IF_MISSING		= 1 << 1
@@ -159,13 +160,15 @@ enum ES_flags
 	,	F_NO_SYNC_HEADER		= 1 << 4 	/* Don't fsync when writing to header metadata */
 	};
 
-struct ES_settings {
-	unsigned char*		identifier[ES_FILE_KEY_SIZE];
+	/** The EventStore database settings structure. */
+typedef struct ES_settings {
+	unsigned char *		identifier[ES_FILE_KEY_SIZE];
  	//unsigned int			header_version;
 	//unsigned int			data_version;
-};
+} ES_settings;
 
-struct ES_database {
+	/** The EventStore database. */
+typedef struct ES_database {
 	pid_t			pid;				/** < Process ID of the database */
 	uint32_t		flags;				/** < @ref Environment flags */
 	int			 	page_size;			/** < Size of a page, from getpagesize(); */
@@ -185,16 +188,20 @@ struct ES_database {
 	// Indexes
 	// Memory Map(s)
 	// Buffer(s)
-};
+} ES_database;
 // Disposal happens in close: mdb_env_close - Line: 4164
-	
+
+struct ES_handle {
+	ES_database *	database;	// Reference to the actual db object inside opaque ES_handle
+};
+
 struct ES_domain {
 	uint64_t		id;			// 64 bit hash of domain name
 	char			name[32];	// Max domain name is 32 chars
 };
 
 struct ES_kind {
-	ES_domain*		domain;		// Domain which contains this kind
+	ES_domain *		domain;		// Domain which contains this kind
 	uint64_t		id;			// 64 bit hash of kind name
 	char 			name[32];	// Max kind name is 32 chars
 };
@@ -321,9 +328,37 @@ void get(ES_database* database, uint64_t domain, uint64_t kind, uint64_t id) {
 }
 */
 
-void es_open(char* path) {
-	ES_database *database = 0;
-	int result = es_open_db(&database, path);
+ES_handle* es_open(char* path) {
+	ES_handle* db_handle = malloc(sizeof(ES_handle));
+	db_handle->database = 0;
+	//ES_database *database = 0;
+	//int result = es_open_db(&database, path);
+	int result = es_open_db(&db_handle->database, path);
+
+	return db_handle;
+}
+
+void es_close(ES_handle* db_handle) {
+	int i = 0;
+	close(db_handle->database->settings_file->file_handle);
+	free(db_handle->database->settings_file);
+	close(db_handle->database->header_file->file_handle);
+	free(db_handle->database->header_file);
+
+	for (i = 0; i < 16; ++i)
+	{
+		close(db_handle->database->data_files[i]->file_handle);
+		free(db_handle->database->data_files[i]);
+	}
+
+	
+	
+
+	//close(db_handle->database->header_swap_file->file_handle);
+	//close(db_handle->database->settings_file);
+	//free(db_handle->database);
+	//free(db_handle);
+	DebugPrint("In close: %x", db_handle);
 }
 
 int es_open_db(ES_database **database, char *path) { //, ES_flags *flags) {
@@ -348,7 +383,7 @@ int es_open_db(ES_database **database, char *path) { //, ES_flags *flags) {
 		return ES_SETTINGS_FILE_INVALID;
 	}
 	DebugPrint("Settings file loaded");
-
+	//close((*database)->settings_file)
 
 	(*database)->header_file = malloc(sizeof(ES_file_handle));
 	op_result = es_open_file_handle((*database)->header_file, path, ES_HEADER_FILE_NAME, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);

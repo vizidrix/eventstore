@@ -37,8 +37,16 @@ type VisitorLogged struct {
 }
 
 func Test_Should(t *testing.T) {
-	goes.Connect("fs://eventstore/")
+	/*es, err := goes.Connect("fs://eventstore/")
+	defer func() {
+		if es != nil {
+			es.Close()
+		}
+	}()
 
+	if err != nil {
+		t.Fail()
+	}*/
 	t.Fail()
 }
 
@@ -48,6 +56,7 @@ func Test_Should_try_to_connect_to_MemoryEventstore_with_correct_path(t *testing
 
 	// Act
 	eventStore, err := goes.Connect(path)
+	defer eventStore.Close()
 
 	// Assert
 	if err != nil {
@@ -73,6 +82,7 @@ func Test_Should_try_to_connect_to_FragmentFileSystemEventStore_with_correct_pat
 
 	// Act
 	eventStore, err := goes.Connect(path)
+	defer eventStore.Close()
 
 	// Assert
 	if err != nil {
@@ -112,9 +122,14 @@ func Test_Should_return_error_if_connstring_is_invalid(t *testing.T) {
 
 	// Act
 	for _, path := range paths {
-		if _, err := goes.Connect(path);
+		es, err := goes.Connect(path)
+		defer func() { // Make sure to clean up if it passed
+			if es != nil {
+				es.Close()
+			}
+		}()
 		// Assert
-		err == nil {
+		if err == nil {
 			log.Printf("Invalid path should have raised an err: %s", path)
 			t.Fail()
 		}
@@ -130,6 +145,7 @@ func Test_Should_put_a_bunch_of_entries(t *testing.T) {
 	index := 0
 	for i = 0; i < 1; i++ {
 		eventStore, _ := goes.Connect(connString)
+		defer eventStore.Close()
 		kindPartition := eventStore.Kind(kind)
 		aggregatePartition := kindPartition.Id(uint64(i))
 
@@ -143,6 +159,7 @@ func Test_Should_put_a_bunch_of_entries(t *testing.T) {
 func EventStore_Should_return_empty_slice_for_new_id(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
+	defer eventStore.Close()
 	kind := goes.NewAggregateKind("namespace", "type")
 	kindPartition := eventStore.Kind(kind)
 	aggregatePartition := kindPartition.Id(1)
@@ -157,6 +174,7 @@ func EventStore_Should_return_empty_slice_for_new_id(t *testing.T, connString st
 func EventStore_Should_return_single_matching_event_for_existing_id(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
+	defer eventStore.Close()
 	kind := goes.NewAggregateKind("namespace", "type")
 	kindPartition := eventStore.Kind(kind)
 	aggregatePartition := kindPartition.Id(1)
@@ -175,6 +193,7 @@ func EventStore_Should_return_single_matching_event_for_existing_id(t *testing.T
 func EventStore_Should_return_middle_events_for_version_range(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
+	defer eventStore.Close()
 	kind := goes.NewAggregateKind("namespace", "kind")
 	kindPartition := eventStore.Kind(kind)
 	aggregatePartition := kindPartition.Id(1)
@@ -196,6 +215,7 @@ func EventStore_Should_return_middle_events_for_version_range(t *testing.T, conn
 func EventStore_Should_return_two_matching_events_for_existing_ids(t *testing.T, connString string) {
 	// Arrange
 	eventStore, _ := goes.Connect(connString)
+	defer eventStore.Close()
 	kind := goes.NewAggregateKind("namespace", "kind")
 	kindPartition := eventStore.Kind(kind)
 	aggregatePartition := kindPartition.Id(1)
@@ -218,6 +238,7 @@ func EventStore_Should_return_two_matching_events_for_existing_ids(t *testing.T,
 
 func EventStore_Should_not_panic_when_range_is_too_long(t *testing.T, connString string) {
 	eventStore, _ := goes.Connect(connString)
+	defer eventStore.Close()
 	kind := goes.NewAggregateKind("namespace", "kind")
 	kindPartition := eventStore.Kind(kind)
 	aggregatePartition := kindPartition.Id(1)

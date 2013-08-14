@@ -1,15 +1,11 @@
 package eventstore
 
-/*
-#include "eventstore.h"
-*/
-import "C"
 import (
 	"errors"
 	"fmt"
 	"log"
 	"strings"
-	"unsafe"
+	//"unsafe"
 )
 
 func event_store_ignore() { log.Println(fmt.Sprintf("", 10)) }
@@ -49,6 +45,7 @@ type EventWriter interface {
 
 type EventStorer interface {
 	Kind(kind *AggregateKind) KindPartitioner
+	Close()
 }
 
 type KindPartitioner interface {
@@ -62,9 +59,11 @@ type AggregatePartitioner interface {
 
 func Connect(connString string) (EventStorer, error) {
 	if strings.HasPrefix(connString, "fs://") {
-		es := EventStore{}
+		//es := EventStore{}
 		//es.Connect("/go/vizidrix/src/github.com/vizidrix/eventstore/data/")
-		es.Connect("/go/esdata/")
+		//es := OpenEventStore("/go/esdata/")
+		connString = "/go/esdata/"
+		//return es, nil
 		return NewFileSystemES(connString), nil
 	} else if strings.HasPrefix(connString, "mem://") {
 		return NewMemoryES(connString), nil
@@ -74,20 +73,4 @@ func Connect(connString string) (EventStorer, error) {
 }
 
 type EventStore struct {
-}
-
-func (es *EventStore) Connect(path string) {
-	str := C.CString(path)
-	defer C.free(unsafe.Pointer(str))
-	_, err := C.es_open(str)
-	if err != nil {
-		log.Printf("Error opening database: %s", err)
-	}
-	//var handle C.int
-	//handle, err := C.godb_open_file(str, 0666)
-}
-
-//export DebugPrintf
-func DebugPrintf(format *C.char) {
-	log.Printf(C.GoString(format))
 }

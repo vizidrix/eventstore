@@ -92,11 +92,7 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 
 /** @} */
 
-	/** The EventStore database settings structure. */
-typedef struct ES_settings ES_settings;
-
-	/** The EventStore database. */
-typedef struct ES_database ES_database;
+typedef struct ES_handle ES_handle;
 
 	/** A domain creates a top level partition separating internal headers */
 typedef struct ES_domain ES_domain;
@@ -104,7 +100,8 @@ typedef struct ES_domain ES_domain;
 	/** A kind represents a type of Aggregate in the event store */
 typedef struct ES_kind ES_kind;
 
-void es_open(char* path);
+ES_handle* es_open(char* path);
+void es_close(ES_handle* db_handle);
 //int es_open(ES_database** database, char* path);
 
 

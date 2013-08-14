@@ -4,45 +4,45 @@ import (
 	//"errors"
 	"fmt"
 	"log"
-	//"os"
 	"time"
 )
 
-func ignore_filesystemeventstore() {
+func ignore_chaneventstore() {
 	log.Printf(fmt.Sprintf(""))
 	time.After(10)
 }
 
-type FileSystemES struct {
+type MemoryES struct {
 	connString string
-	path       string
-	kindStore  map[uint32]KindPartitioner
-	//eventStore map[uint32]*FileSystemEventStorePartition
+	//kindStore  map[uint32]*MemoryESKindPartition
+	kindStore map[uint32]KindPartitioner
 }
 
-type FileSystemESKindPartition struct {
+type MemoryESKindPartition struct {
 	kind           *AggregateKind
 	aggregateStore map[uint64]AggregatePartitioner
 }
 
-type FileSystemESAggregatePartition struct {
+type MemoryESAggregatePartition struct {
 	id     uint64
 	events *EventSet
 }
 
-func NewFileSystemES(path string) EventStorer {
-
-	return &FileSystemES{
-		connString: path,
-		path:       path,
+func NewMemoryES(connString string) EventStorer {
+	return &MemoryES{
+		connString: connString,
 		kindStore:  make(map[uint32]KindPartitioner),
 	}
 }
 
-func (es *FileSystemES) Kind(kind *AggregateKind) KindPartitioner {
+func (es *MemoryES) Close() {
+	//es.kindStore = nil
+}
+
+func (es *MemoryES) Kind(kind *AggregateKind) KindPartitioner {
 	partition, foundPartition := es.kindStore[kind.Hash()]
 	if !foundPartition {
-		partition = &FileSystemESKindPartition{
+		partition = &MemoryESKindPartition{
 			kind:           kind,
 			aggregateStore: make(map[uint64]AggregatePartitioner),
 		}
@@ -51,10 +51,10 @@ func (es *FileSystemES) Kind(kind *AggregateKind) KindPartitioner {
 	return partition
 }
 
-func (kindPartition *FileSystemESKindPartition) Id(id uint64) AggregatePartitioner {
+func (kindPartition *MemoryESKindPartition) Id(id uint64) AggregatePartitioner {
 	partition, foundPartition := kindPartition.aggregateStore[id]
 	if !foundPartition {
-		partition = &FileSystemESAggregatePartition{
+		partition = &MemoryESAggregatePartition{
 			id:     id,
 			events: NewEmptyEventSet(),
 		}
@@ -63,15 +63,15 @@ func (kindPartition *FileSystemESKindPartition) Id(id uint64) AggregatePartition
 	return partition
 }
 
-func (aggregatePartition *FileSystemESAggregatePartition) Get() (*EventSet, error) {
+func (aggregatePartition *MemoryESAggregatePartition) Get() (*EventSet, error) {
 	return aggregatePartition.events, nil
 }
 
-func (aggregatePartition *FileSystemESAggregatePartition) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
+func (aggregatePartition *MemoryESAggregatePartition) GetSlice(startIndex int, endIndex int) (*EventSet, error) {
 	return aggregatePartition.events.GetSlice(startIndex, endIndex)
 }
 
-func (aggregatePartition *FileSystemESAggregatePartition) Put(newEvents ...Event) (*EventSet, error) {
+func (aggregatePartition *MemoryESAggregatePartition) Put(newEvents ...Event) (*EventSet, error) {
 	newEventSet, err := aggregatePartition.events.Put(newEvents...)
 	if err != nil {
 		return nil, err

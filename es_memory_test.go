@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func ignore_chaneventstore_test() { log.Println("") }
+func ignore_memoryeventstore_test() { log.Println("") }
 
 // 256 4k events / 1mb
 // 4124 ns/ 1 op = 2424 op / ms = 2,424,000 op / s = 9468 mb / s
