@@ -24,14 +24,12 @@ func Test_Should_put_single_event_into_write_store(t *testing.T) {
 	//max_size := 512 - 32
 
 	data := make([][]byte, 4)
-	data[0] = make([]byte, 50)
-	data[1] = make([]byte, 100)
-	data[2] = make([]byte, 200)
-	data[3] = make([]byte, 400)
-	data[0][0] = 1
-	data[1][0] = 2
-	data[2][0] = 3
-	data[3][0] = 4
+	data[0] = MakeByteSlice(50)
+	data[1] = MakeByteSlice(100)
+	data[2] = MakeByteSlice(200)
+	data[3] = MakeByteSlice(400)
+
+	MakeByteSlice(50)
 
 	var domain uint32 = 100
 	var kind uint32 = 110
@@ -43,6 +41,12 @@ func Test_Should_put_single_event_into_write_store(t *testing.T) {
 	}
 
 	log.Printf("[ES..test.go]\tAllocated batch #: %d", batch.BatchId)
+	for i := 0; i < 4; i++ {
+		//batch.Entities[i].EventData
+		copy(batch.Entries[i].GetEventData()[:], data[i])
+	}
+
+	batch.Publish()
 	/*
 		for i := 0; i < 4; i++ {
 			batch[i].EventType = 111 * (i + 1)

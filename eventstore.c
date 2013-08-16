@@ -1,6 +1,6 @@
 #include "eventstore.h"
 
-/****************************************************************************
+/***********************************************************************************************************
 ============================================================================================================
 =        ==  ====  ==        ==  =======  ==        ===      ===        ====    ====       ===        ======
 =  ========  ====  ==  ========   ======  =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
@@ -12,7 +12,7 @@
 =  ==========    ====  ========  ======   =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
 =        =====  =====        ==  =======  =====  ======      ======  =======    ====  ====  ==        ======
 ============================================================================================================
-****************************************************************************/
+***********************************************************************************************************/
 
 // Thanks for the ASCII comment blocks!  (Reverse font) http://patorjk.com/software/taag/
 
@@ -55,7 +55,7 @@ char * es_version(int *major, int *minor, int *patch)
 #define HANDLE 							int 						/** An abstraction for a file handle. */
 #define INVALID_HANDLE_VALUE 			(-1)
 
-/****************************************************************************
+/******************************************************
 =======================================================
 =        ==  ====  ==       ===        ===      =======
 ====  =====   ==   ==  ====  ==  ========  ====  ======
@@ -65,11 +65,11 @@ char * es_version(int *major, int *minor, int *patch)
 ====  ========  =====  ========  ========  ====  ======
 ====  ========  =====  ========        ===      =======
 =======================================================
-****************************************************************************/
+******************************************************/
 
 
 
-/****************************************************************************
+/**********************************************************************
 =======================================================================
 =       ===       ===    ==  ====  =====  =====        ==        ======
 =  ====  ==  ====  ===  ===  ====  ====    =======  =====  ============
@@ -79,7 +79,7 @@ char * es_version(int *major, int *minor, int *patch)
 =  ========  ====  ===  =====    ====  ====  =====  =====  ============
 =  ========  ====  ==    =====  =====  ====  =====  =====        ======
 =======================================================================
-****************************************************************************/
+**********************************************************************/
 
 
 /****************************************************************************
@@ -103,20 +103,29 @@ typedef struct ES_mmap_handle {
 	off_t			offset;			/** < Byte offset from beginning of file */
 } ES_mmap_handle;
 
-//typedef struct ES_cursor {
-//	char * 			dest;
-//	off_t			size;
-//	off_t			position;
-//} ES_cursor;
-
-
+typedef struct ES_put_command {
+	uint32_t		crc;							/** < 32bit checksum of type+data */
+	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
+	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
+	uint32_t		kind_id;
+	uint64_t		aggregate_id;
+	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
+	uint16_t		event_size;						/** < Length of the event data */
+	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
+} ES_put_command; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
 
 typedef struct ES_put_event {
 	char 			event_type; // Either [ BATCH_COMPLETE | COMMAND_COMPLETE ]
 	uint64_t		id;
 } ES_put_event;
 
-/****************************************************************************
+//typedef struct ES_cursor {
+//	char * 			dest;
+//	off_t			size;
+//	off_t			position;
+//} ES_cursor;
+
+/***********************************************************
 ============================================================
 =       ===  ====  ==      ===  ========    ====     =======
 =  ====  ==  ====  ==  ===  ==  =========  ====  ===  ======
@@ -126,7 +135,7 @@ typedef struct ES_put_event {
 =  ========   ==   ==  ===  ==  =========  ====  ===  ======
 =  =========      ===      ===        ==    ====     =======
 ============================================================
-****************************************************************************/
+***********************************************************/
 
 struct ES_writer {
 	char *					file_path;				/** < Path to the db files */
@@ -137,17 +146,6 @@ struct ES_writer {
 	
 	ES_mmap_handle *		generations_mmap;
 };
-
-struct ES_put_command {
-	uint32_t		crc;							/** < 32bit checksum of type+data */
-	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
-	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
-	uint32_t		kind_id;
-	uint64_t		aggregate_id;
-	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
-	uint16_t		event_size;						/** < Length of the event data */
-	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
-}; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
 
 struct ES_batch_entry {
 	char			command_id;
@@ -165,7 +163,7 @@ struct ES_batch {
 	ES_batch_entry * 	entries;
 };
 
-/****************************************************************************
+/***************************************************************************
 ============================================================================
 =  =====  ==        ==        ==  ====  ====    ====       ====      =======
 =   ===   ==  ===========  =====  ====  ===  ==  ===  ====  ==  ====  ======
@@ -175,11 +173,11 @@ struct ES_batch {
 =  =====  ==  ===========  =====  ====  ===  ==  ===  ====  ==  ====  ======
 =  =====  ==        =====  =====  ====  ====    ====       ====      =======
 ============================================================================
-****************************************************************************/
+***************************************************************************/
 
 
 
-/****************************************************************************
+/**********************************************************************
 =======================================================================
 =       ===       ===    ==  ====  =====  =====        ==        ======
 =  ====  ==  ====  ===  ===  ====  ====    =======  =====  ============
@@ -189,7 +187,7 @@ struct ES_batch {
 =  ========  ====  ===  =====    ====  ====  =====  =====  ============
 =  ========  ====  ==    =====  =====  ====  =====  =====        ======
 =======================================================================
-****************************************************************************/
+**********************************************************************/
 
 
 
@@ -304,7 +302,7 @@ void es_close_mmap_handle(ES_mmap_handle* handle, off_t size) {
 	free(handle);
 }
 
-/****************************************************************************
+/***********************************************************
 ============================================================
 =       ===  ====  ==      ===  ========    ====     =======
 =  ====  ==  ====  ==  ===  ==  =========  ====  ===  ======
@@ -314,7 +312,7 @@ void es_close_mmap_handle(ES_mmap_handle* handle, off_t size) {
 =  ========   ==   ==  ===  ==  =========  ====  ===  ======
 =  =========      ===      ===        ==    ====     =======
 ============================================================
-****************************************************************************/
+***********************************************************/
 
 
 /****************************************************************************
@@ -360,16 +358,6 @@ void es_close_write(ES_writer* writer) {
 	DebugPrint("Closed writer");
 }
 
-void es_publish_batch(ES_batch* batch) {
-	// perform publish actions
-	int i = 0;
-	for(i = 0; i < batch->batch_size; i++) {
-		free(batch->entries[i].event_data);
-	}
-	free(batch->entries);
-	free(batch);
-}
-
 ES_batch* es_alloc_batch(ES_writer* writer, 
 	uint32_t domain_id, 
 	uint32_t kind_id, 
@@ -389,26 +377,41 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	int i, j = 0;
 	for(i = 0; i < count; i++) {
 		batch->entries[i].command_id = i;
-		batch->entries[i].event_type = 1;
+		batch->entries[i].event_type = 0;
 		batch->entries[i].event_size = 0;
 		// Need to change this to point to the correct slot in generation mmap
-		batch->entries[i].event_data = malloc(10);//ES_MAX_DATA_SIZE);
-		//char * data = &batch->entries[i].event_data
-		//char * data = malloc(10);//ES_MAX_DATA_SIZE);
-		//char * data = malloc(10);
-		for(j = 0; j < 10; j++) {
+		batch->entries[i].event_data = malloc(ES_MAX_DATA_SIZE);
+
+		for(j = 0; j < ES_MAX_DATA_SIZE; j++) {
 			batch->entries[i].event_data[j] = j * i;
 		}
-		//&batch->entries[i].event_data = &data;
 	}
 	// Populate batch with number of entries
 
 	return batch;
-	//DebugPrint("Size: %d", sizeof(ES_put_command));
+}
 
-	//ES_put_command* commands = (ES_put_command*)writer->generations_mmap->mmap_handle;
+void es_publish_batch(ES_batch* batch) {
+	// perform publish actions
+	DebugPrint("** Publishing **");
+	DebugPrint("Batch Id: %d", batch->batch_id);
+	DebugPrint("Domain Id: %d", batch->domain_id);
+	DebugPrint("Kind Id: %d", batch->kind_id);
+	DebugPrint("Aggregate Id: %d", batch->aggregate_id);
+	DebugPrint("Batch Size: %d", batch->batch_size);
 
-	//return commands;
+	int i = 0;
+	for(i = 0; i < batch->batch_size; i++) {
+		DebugPrint("\tCommand Id: %d", batch->entries[i].command_id);
+		DebugPrint("Event Type: %d", batch->entries[i].event_type);
+		DebugPrint("Event Size: %d", batch->entries[i].event_size);
+		//DebugPrint("Event Data: % x", sizeof(batch->entries[i].event_data));
+		free(batch->entries[i].event_data);
+	}
+	free(batch->entries);
+	//free(batch);
+	
+}
 /*
 
 	//void* mem = (struct S_put_command*)malloc(sizeof(ES_put_command) * 4);
@@ -444,7 +447,7 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	//return commands;//[0];//[0];
 	*/
 	
-}
+//}
 
 
 

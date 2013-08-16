@@ -118,7 +118,7 @@ typedef struct ES_writer ES_writer;
 typedef struct ES_batch_entry ES_batch_entry;
 typedef struct ES_batch ES_batch;
 
-typedef struct ES_put_command ES_put_command;
+//typedef struct ES_put_command ES_put_command;
 
 ES_writer* es_open_write(char* path);
 void es_close_write(ES_writer* writer);
@@ -127,6 +127,7 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	uint32_t kind_id, 
 	uint64_t aggregate_id, 
 	char count);
+void es_publish_batch(ES_batch* batch);
 
 
 

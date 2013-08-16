@@ -12,10 +12,12 @@ func ignore_eventset_test() {
 	log.Printf(fmt.Sprintf(""))
 }
 
+var count int = 10
+
 func MakeByteSlice(size int) []byte {
 	result := make([]byte, size)
 	for i := 0; i < size; i++ {
-		result[i] = byte(i % 255)
+		result[i] = byte(i % 13) //(i % 255))
 	}
 	return result
 }

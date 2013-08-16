@@ -13,6 +13,10 @@ import (
 	"unsafe"
 )
 
+const (
+	MAX_EVENT_SIZE = 512 - 32
+)
+
 type ESWriter struct {
 	path      string
 	db_handle *[0]byte
@@ -74,6 +78,8 @@ func (writer *ESWriter) AllocBatch(
 	aggregate uint64,
 	count byte) (*ESBatch, error) {
 
+	//max_data_size := 512 - 32
+
 	var ES_batch *C.ES_batch
 	ES_batch, _ = C.es_alloc_batch(writer.db_handle,
 		C.uint32_t(domain),
@@ -86,16 +92,14 @@ func (writer *ESWriter) AllocBatch(
 	entries_header.Cap = int(count)
 	entries_header.Len = int(count)
 
-	for i := 0; i < int(count); i++ {
-		log.Printf("Data[%d]: % v", i, batch.Entries[i])
-		ptr := (unsafe.Pointer)(batch.Entries[i].EventData)
+	//for i := 0; i < int(count); i++ {
+	//ptr := (unsafe.Pointer)(batch.Entries[i].EventData)
+	//var data *[MAX_EVENT_SIZE]byte = (*[MAX_EVENT_SIZE]byte)(ptr)
 
-		log.Printf("Ptr: %s", ptr)
-
-		var data *[10]byte = (*[10]byte)(ptr)
-
-		log.Printf("Data: % v", data)
-	}
+	//log.Printf("Data[%d]: % v", i, batch.Entries[i])
+	//log.Printf("Ptr: %s", ptr)
+	//log.Printf("Data: % v", data)
+	//}
 
 	log.Printf("[ESWriter]\tAllocated batch: % v", batch)
 
@@ -104,6 +108,16 @@ func (writer *ESWriter) AllocBatch(
 	//log.Printf("Batch entry[0] val: % v", *batch.Entries[0].EventData)
 
 	return &batch, nil
+}
+
+func (batch *ESBatch) Publish() {
+	var ES_batch *[0]byte
+	ES_batch = (*[0]byte)(unsafe.Pointer(batch))
+	C.es_publish_batch(ES_batch)
+}
+
+func (entry *ESBatchEntry) GetEventData() *[MAX_EVENT_SIZE]byte {
+	return (*[MAX_EVENT_SIZE]byte)((unsafe.Pointer)(entry.EventData))
 }
 
 /*

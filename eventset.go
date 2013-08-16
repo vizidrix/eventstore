@@ -11,6 +11,20 @@ func eventset_ignore() {
 	//runtime.Sto
 }
 
+const (
+	MIN_EVENT_BUFFER        = 0   //64
+	MAX_EVENT_BUFFER        = -1  // Limits the growth of the event buffers. -1 turns it off.
+	EVENT_GROWTH_MULTIPLIER = 256 // (BUFFER * N) / 128 so 160 = 125%, 192 = 150%
+
+	HEADER_SLICE_SIZE = 64 // Room for 8 appends before expand
+	// ** Huge tuning variable
+	// Smaller # will result in general speed improvement for items below the threshold size
+	// Larger # will result in faster first append for larger events
+	// Set this to the largest average event size?
+	DATA_SLICE_SIZE = 1024
+	//MAX_EVENT_SIZE  = int(MaxUint16)
+)
+
 /*
 
 Header Index - Per Aggregate with Header Record (8 byte) per event
@@ -47,16 +61,6 @@ type EventSet struct {
 	headers []Header // Typed view of header
 	events  [][]byte // Map of index to event data
 }
-
-const (
-	HEADER_SLICE_SIZE = 64 // Room for 8 appends before expand
-	// ** Huge tuning variable
-	// Smaller # will result in general speed improvement for items below the threshold size
-	// Larger # will result in faster first append for larger events
-	// Set this to the largest average event size?
-	DATA_SLICE_SIZE = 1024
-	MAX_EVENT_SIZE  = int(MaxUint16)
-)
 
 func NewEmptyEventSet() *EventSet {
 	headerData := new([HEADER_SLICE_SIZE]byte)[0:0]
@@ -223,9 +227,3 @@ func (set *EventSet) Put(newEvents ...Event) (*EventSet, error) {
 		events:     events,
 	}, nil
 }
-
-const (
-	MIN_EVENT_BUFFER        = 0   //64
-	MAX_EVENT_BUFFER        = -1  // Limits the growth of the event buffers. -1 turns it off.
-	EVENT_GROWTH_MULTIPLIER = 256 // (BUFFER * N) / 128 so 160 = 125%, 192 = 150%
-)
