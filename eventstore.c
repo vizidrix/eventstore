@@ -129,27 +129,41 @@ typedef struct ES_put_event {
 ****************************************************************************/
 
 struct ES_writer {
-	char *					file_path;			/** < Path to the db files */
+	char *					file_path;				/** < Path to the db files */
 
-	ES_file_handle*			header_file;		/** < Handle for managing the header file */
-	ES_file_handle*			generations_file;	/** < Handle for any active generations */
-	ES_file_handle*			data_files[16];		/** < Handles for managing the data file */
+	ES_file_handle*			header_file;			/** < Handle for managing the header file */
+	ES_file_handle*			generations_file;		/** < Handle for any active generations */
+	ES_file_handle*			data_files[16];			/** < Handles for managing the data file */
 	
 	ES_mmap_handle *		generations_mmap;
-
-	//ES_put_command * 		commands;
 };
 
 struct ES_put_command {
-	uint32_t		crc;						/** < 32bit checksum of type+data */
-	uint64_t		command_id;					/** < First 32 bits are batch id, second are command id */
-	uint32_t		domain_id;					/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
+	uint32_t		crc;							/** < 32bit checksum of type+data */
+	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
+	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
 	uint32_t		kind_id;
 	uint64_t		aggregate_id;
-	uint16_t		event_type;					/** < Identifies the structure in the data blob to client */
-	uint16_t		event_size;					/** < Length of the event data */
-	char 			event_data[MAX_DATA_SIZE];	/** < Bucket of data for the event */
+	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
+	uint16_t		event_size;						/** < Length of the event data */
+	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
 }; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
+
+struct ES_batch_entry {
+	char			command_id;
+	uint16_t		event_type;
+	uint16_t		event_size;
+	char *			event_data;
+};
+
+struct ES_batch {
+	uint64_t			batch_id;
+	uint32_t			domain_id;
+	uint32_t			kind_id;
+	uint64_t			aggregate_id;
+	char				batch_size;
+	ES_batch_entry * 	entries;
+};
 
 /****************************************************************************
 ============================================================================
@@ -346,13 +360,55 @@ void es_close_write(ES_writer* writer) {
 	DebugPrint("Closed writer");
 }
 
-ES_put_command* es_alloc(ES_writer* writer, int count) {
-	DebugPrint("Allocating: %d", count);
-	DebugPrint("Size: %d", sizeof(ES_put_command));
+void es_publish_batch(ES_batch* batch) {
+	// perform publish actions
+	int i = 0;
+	for(i = 0; i < batch->batch_size; i++) {
+		free(batch->entries[i].event_data);
+	}
+	free(batch->entries);
+	free(batch);
+}
 
-	ES_put_command* commands = (ES_put_command*)writer->generations_mmap->mmap_handle;
+ES_batch* es_alloc_batch(ES_writer* writer, 
+	uint32_t domain_id, 
+	uint32_t kind_id, 
+	uint64_t aggregate_id, 
+	char count) {
+	DebugPrint("[es.....c]\tAllocating Batch: %d", count);
 
-	return commands;
+	// Need to make a batch
+	ES_batch* batch = malloc(sizeof(ES_batch));
+	batch->batch_id = 5;
+	batch->domain_id = domain_id;
+	batch->kind_id = kind_id;
+	batch->aggregate_id = aggregate_id;
+	batch->batch_size = count;
+	batch->entries = malloc(sizeof(ES_batch_entry) * count);
+
+	int i, j = 0;
+	for(i = 0; i < count; i++) {
+		batch->entries[i].command_id = i;
+		batch->entries[i].event_type = 1;
+		batch->entries[i].event_size = 0;
+		// Need to change this to point to the correct slot in generation mmap
+		batch->entries[i].event_data = malloc(10);//ES_MAX_DATA_SIZE);
+		//char * data = &batch->entries[i].event_data
+		//char * data = malloc(10);//ES_MAX_DATA_SIZE);
+		//char * data = malloc(10);
+		for(j = 0; j < 10; j++) {
+			batch->entries[i].event_data[j] = j * i;
+		}
+		//&batch->entries[i].event_data = &data;
+	}
+	// Populate batch with number of entries
+
+	return batch;
+	//DebugPrint("Size: %d", sizeof(ES_put_command));
+
+	//ES_put_command* commands = (ES_put_command*)writer->generations_mmap->mmap_handle;
+
+	//return commands;
 /*
 
 	//void* mem = (struct S_put_command*)malloc(sizeof(ES_put_command) * 4);

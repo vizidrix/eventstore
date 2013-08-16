@@ -21,17 +21,50 @@ func Test_Should_put_single_event_into_write_store(t *testing.T) {
 		log.Printf("Error opening ES Writer")
 		t.Fail()
 	}
+	//max_size := 512 - 32
 
-	data := make([]byte, 10)
-	data[0] = 255
-	data[2] = 255
-	data[4] = 255
-	data[6] = 255
-	data[8] = 255
-	command, err := writer.Next()
-	//log.Printf("Command: % x", command)
-	copy(command.Event_data[0:], data)
-	//copy(data, command.Event_data[0:])
+	data := make([][]byte, 4)
+	data[0] = make([]byte, 50)
+	data[1] = make([]byte, 100)
+	data[2] = make([]byte, 200)
+	data[3] = make([]byte, 400)
+	data[0][0] = 1
+	data[1][0] = 2
+	data[2][0] = 3
+	data[3][0] = 4
+
+	var domain uint32 = 100
+	var kind uint32 = 110
+	var aggregate uint64 = 111
+
+	batch, err := writer.AllocBatch(domain, kind, aggregate, 4)
+	if err != nil {
+		log.Printf("Error allocating branch: %s", err)
+	}
+
+	log.Printf("[ES..test.go]\tAllocated batch #: %d", batch.BatchId)
+	/*
+		for i := 0; i < 4; i++ {
+			batch[i].EventType = 111 * (i + 1)
+			batch[i].EventSize = sizeof(data[i]) % max_size
+			copy(batch[i].EventData[0:max_size], data[i])
+
+			batch.Publish()
+		}
+	*/
+
+	/*
+		data := make([]byte, 10)
+		data[0] = 255
+		data[2] = 255
+		data[4] = 255
+		data[6] = 255
+		data[8] = 255
+		command, err := writer.Next()
+		//log.Printf("Command: % x", command)
+		copy(command.Event_data[0:], data)
+		//copy(data, command.Event_data[0:])
+	*/
 
 	//log.Printf("Command: % x", command)
 

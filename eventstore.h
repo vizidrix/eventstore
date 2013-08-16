@@ -107,15 +107,26 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 //int es_open(ES_database** database, char* path);
 
 	/** Targeting min workable size that fits cleanly in 4kb */
-#define MAX_DATA_SIZE					1024 - 32 // 32 is command overhead size
-
+#define ES_GEN_PAGE_SIZE				4096
+#define ES_COMMAND_SIZE					512
+#define ES_COMMAND_HEADER_SIZE			32		// 32 is command overhead size
+#define ES_MAX_DATA_SIZE				ES_COMMAND_SIZE - ES_COMMAND_HEADER_SIZE
+#define ES_COMMANDS_PER_PAGE			ES_GEN_PAGE_SIZE / ES_COMMAND_SIZE
 
 typedef struct ES_writer ES_writer;
+
+typedef struct ES_batch_entry ES_batch_entry;
+typedef struct ES_batch ES_batch;
+
 typedef struct ES_put_command ES_put_command;
 
 ES_writer* es_open_write(char* path);
 void es_close_write(ES_writer* writer);
-ES_put_command* es_alloc(ES_writer* writer, int count);
+ES_batch* es_alloc_batch(ES_writer* writer, 
+	uint32_t domain_id, 
+	uint32_t kind_id, 
+	uint64_t aggregate_id, 
+	char count);
 
 
 
