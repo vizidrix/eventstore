@@ -2,7 +2,7 @@ package eventstore
 
 import (
 	"fmt"
-	"hash/crc32"
+	//"hash/crc32"
 	"log"
 )
 
@@ -15,11 +15,11 @@ type AggregateKind struct {
 }
 
 func NewAggregateKind(namespace string, kind string) *AggregateKind {
-	hash := crc32.Checksum([]byte(namespace+kind), crc32.MakeTable(crc32.Castagnoli))
+	//hash := crc32.Checksum([]byte(namespace+kind), crc32.MakeTable(crc32.Castagnoli))
 	return &AggregateKind{
 		namespace: namespace,
 		kind:      kind,
-		hash:      hash,
+		hash:      MakeCRC([]byte(namespace + kind)),
 	}
 }
 

@@ -69,14 +69,14 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 #define ES_SUCCESS 						0 					/** Successful result */
 #define ES_ERROR						(-30600)			/** Generic error */
 
-#define ES_NOTFOUND 					(ES_ERROR - 1) 		/** Key not found during get (EOF) */
-#define ES_CORRUPTED 					(ES_ERROR - 2)		/** CheckSum failed */
-#define ES_PANIC 						(ES_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
-#define ES_VERSION_MISMATCH 			(ES_ERROR - 4) 		/** Environment version mismatch */
-#define ES_MAP_FULL						(ES_ERROR - 5)		/** Environment mapsize reached */
-#define ES_PAGE_FULL					(ES_ERROR - 6)		/** Page ran out of space - internal error */
-#define ES_MAP_RESIZED					(ES_ERROR - 7)		/** Database contents grew benyond environment mapsize */
-#define ES_INCOMPATIBLE					(ES_ERROR - 8)		/** Database flags changes (or would change) */
+//#define ES_NOTFOUND 					(ES_ERROR - 1) 		/** Key not found during get (EOF) */
+//#define ES_CORRUPTED 					(ES_ERROR - 2)		/** CheckSum failed */
+//#define ES_PANIC 						(ES_ERROR - 3) 		/** Update of meta page failed, probably I/O error */
+//#define ES_VERSION_MISMATCH 			(ES_ERROR - 4) 		/** Environment version mismatch */
+//#define ES_MAP_FULL						(ES_ERROR - 5)		/** Environment mapsize reached */
+//#define ES_PAGE_FULL					(ES_ERROR - 6)		/** Page ran out of space - internal error */
+//#define ES_MAP_RESIZED					(ES_ERROR - 7)		/** Database contents grew benyond environment mapsize */
+//#define ES_INCOMPATIBLE					(ES_ERROR - 8)		/** Database flags changes (or would change) */
 
 #define ES_FILE_NOTFOUND 				(ES_ERROR - 100)	/** ES file was not found */
 #define ES_FILE_INVALID 				(ES_ERROR - 200)	/** ES file is invalid */
@@ -85,25 +85,37 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 #define ES_SETTINGS_FILE_INVALID 		(ES_FILE_INVALID - 1)	/** ES Settings file is invalid */
 #define ES_HEADER_FILE_NOTFOUND 		(ES_FILE_NOTFOUND - 2)	/** ES Header file was not found */
 #define ES_HEADER_FILE_INVALID 			(ES_FILE_INVALID - 2)	/** ES Header file is invalid */
+#define ES_GEN_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 3)	/** ES Generation file was not found */
+#define ES_GEN_FILE_INVALID 			(ES_FILE_INVALID - 3)	/** ES Generation file is invalid */
 #define ES_DATA_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 10)	/** ES Data file was not found */
 #define ES_DATA_FILE_INVALID 			(ES_FILE_INVALID - 10)	/** ES Data file is invalid */
-#define ES_GEN_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 30)	/** ES Generation file was not found */
-#define ES_GEN_FILE_INVALID 			(ES_FILE_INVALID - 30)	/** ES Generation file is invalid */
+
 
 /** @} */
 
-typedef struct ES_handle ES_handle;
+	/** Represents an opaque handle to the real database struct */
+//typedef struct ES_handle ES_handle;
 
 	/** A domain creates a top level partition separating internal headers */
-typedef struct ES_domain ES_domain;
+//typedef struct ES_domain ES_domain;
 
 	/** A kind represents a type of Aggregate in the event store */
-typedef struct ES_kind ES_kind;
+//typedef struct ES_kind ES_kind;
 
-ES_handle* es_open(char* path);
-void es_close(ES_handle* db_handle);
+//ES_handle* es_open(char* path);
+//void es_close(ES_handle* writer);
 //int es_open(ES_database** database, char* path);
 
+	/** Targeting min workable size that fits cleanly in 4kb */
+#define MAX_DATA_SIZE					1024 - 32 // 32 is command overhead size
+
+
+typedef struct ES_writer ES_writer;
+typedef struct ES_put_command ES_put_command;
+
+ES_writer* es_open_write(char* path);
+void es_close_write(ES_writer* writer);
+ES_put_command* es_alloc(ES_writer* writer, int count);
 
 
 

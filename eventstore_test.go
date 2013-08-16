@@ -13,8 +13,45 @@ func ignore() { log.Println("") }
 
 // go test -v github.com/vizidrix/eventstore -bench . -cpuprofile /go/prof.out -cpu 1,2,4,8
 
-func Get_EventStoreEntry() {
+func Test_Should_put_single_event_into_write_store(t *testing.T) {
+	writer, err := goes.NewESWriter("/go/esdata/")
+	log.Printf("Writer: % x", writer)
+	defer writer.Close()
+	if err != nil {
+		log.Printf("Error opening ES Writer")
+		t.Fail()
+	}
 
+	data := make([]byte, 10)
+	data[0] = 255
+	data[2] = 255
+	data[4] = 255
+	data[6] = 255
+	data[8] = 255
+	command, err := writer.Next()
+	//log.Printf("Command: % x", command)
+	copy(command.Event_data[0:], data)
+	//copy(data, command.Event_data[0:])
+
+	//log.Printf("Command: % x", command)
+
+	//command, err := writer.AllocSingle("domain", "kind", 1)
+	//if err != nil {
+	//	t.Fail()
+	//	return
+	//}
+
+	//command.EventType = 5
+	//command.Data = (([]byte)("DATA"))
+	//command.Publish()
+
+	//log.Printf("Command: % x", command)
+
+	// get a set of put commands from db
+	// wrap them in managed slices
+	// fill them over here from wherever
+	// publish commands
+	//writer.Put(1, 1, 1, 1)
 }
 
 func Get_Event(eventType uint16, size int) goes.Event {

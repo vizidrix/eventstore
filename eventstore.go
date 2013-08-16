@@ -1,38 +1,47 @@
 package eventstore
 
+/*
+#include "eventstore.h"
+*/
+import "C"
 import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
-	//"unsafe"
+	"unsafe"
 )
 
-func event_store_ignore() { log.Println(fmt.Sprintf("", 10)) }
+func event_store_ignore() {
+	log.Println(fmt.Sprintf("", 10))
+	log.Printf("", reflect.SliceHeader{}, errors.New("stuff"), strings.HasPrefix("s", "q"), unsafe.Pointer(nil))
+}
+
+/*
+func NewESWriter(path string) (*ESWriter, error) {
+	str := C.CString(path)
+	defer C.free(unsafe.Pointer(str))
+	db_handle, err := C.es_open_write(str)
+	if err != nil {
+		log.Printf("Error opening write database: %s", err)
+		return nil, err
+	}
+	return &ESWriter{
+		path:      path,
+		db_handle: db_handle,
+	}, nil
+}
+
+func (writer *ESWriter) Close() {
+	C.es_close_write(writer.db_handle)
+}
+*/
 
 // http://graphics.stanford.edu/~seander/bithacks.html
 //func PowerOf2(value uint64) bool {
 //	return value && !(value & (value - 1))
 //}
-
-const (
-	MaxUint   = ^uint(0)
-	MinUint   = 0
-	MaxInt    = int(^uint(0) >> 1)
-	MinInt    = -(MaxInt - 1)
-	MaxUint16 = ^uint16(0)
-	MinUint16 = 0
-	MaxInt16  = int16(^uint16(0) >> 1)
-	MinInt16  = -(MaxInt16 - 1)
-	MaxUint32 = ^uint32(0)
-	MinUint32 = 0
-	MaxInt32  = int32(^uint32(0) >> 1)
-	MinInt32  = -(MaxInt - 1)
-	MaxUint64 = ^uint64(0)
-	MinUint64 = 0
-	MaxInt64  = int64(^uint64(0) >> 1)
-	MinInt64  = -(MaxInt - 1)
-)
 
 type EventReader interface {
 	Get() (*EventSet, error)
