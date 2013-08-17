@@ -15,7 +15,7 @@ func ignore() { log.Println("") }
 
 func Test_Should_put_single_event_into_write_store(t *testing.T) {
 	writer, err := goes.NewESWriter("/go/esdata/")
-	log.Printf("Writer: % x", writer)
+	//log.Printf("Writer: % x", writer)
 	defer writer.Close()
 	if err != nil {
 		log.Printf("Error opening ES Writer")
@@ -29,66 +29,30 @@ func Test_Should_put_single_event_into_write_store(t *testing.T) {
 	data[2] = MakeByteSlice(200)
 	data[3] = MakeByteSlice(400)
 
-	MakeByteSlice(50)
-
 	var domain uint32 = 100
 	var kind uint32 = 110
 	var aggregate uint64 = 111
 
-	batch, err := writer.AllocBatch(domain, kind, aggregate, 4)
+	//writer.AllocBatch(domain, kind, aggregate, 4)
+	//writer.AllocBatch(domain, kind, aggregate, 4)
+
+	batch, err := writer.AllocBatch(domain, kind, aggregate, 9, 4)
 	if err != nil {
 		log.Printf("Error allocating branch: %s", err)
 	}
 
-	log.Printf("[ES..test.go]\tAllocated batch #: %d", batch.BatchId)
 	for i := 0; i < 4; i++ {
-		//batch.Entities[i].EventData
-		copy(batch.Entries[i].GetEventData()[:], data[i])
+		batch.Entries[i].EventType = uint16(i)
+		batch.Entries[i].EventSize = uint16(len(data[i]))
+		batch.Entries[i].CopyFrom(data[i])
+		//copy(batch.Entries[i].GetEventData()[:], data[i])
 	}
-
 	batch.Publish()
-	/*
-		for i := 0; i < 4; i++ {
-			batch[i].EventType = 111 * (i + 1)
-			batch[i].EventSize = sizeof(data[i]) % max_size
-			copy(batch[i].EventData[0:max_size], data[i])
-
-			batch.Publish()
-		}
-	*/
-
-	/*
-		data := make([]byte, 10)
-		data[0] = 255
-		data[2] = 255
-		data[4] = 255
-		data[6] = 255
-		data[8] = 255
-		command, err := writer.Next()
-		//log.Printf("Command: % x", command)
-		copy(command.Event_data[0:], data)
-		//copy(data, command.Event_data[0:])
-	*/
-
-	//log.Printf("Command: % x", command)
-
-	//command, err := writer.AllocSingle("domain", "kind", 1)
-	//if err != nil {
-	//	t.Fail()
-	//	return
-	//}
-
-	//command.EventType = 5
-	//command.Data = (([]byte)("DATA"))
-	//command.Publish()
-
-	//log.Printf("Command: % x", command)
 
 	// get a set of put commands from db
 	// wrap them in managed slices
 	// fill them over here from wherever
 	// publish commands
-	//writer.Put(1, 1, 1, 1)
 }
 
 func Get_Event(eventType uint16, size int) goes.Event {

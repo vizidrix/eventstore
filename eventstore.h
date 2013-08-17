@@ -120,13 +120,14 @@ typedef struct ES_batch ES_batch;
 
 //typedef struct ES_put_command ES_put_command;
 
-ES_writer* es_open_write(char* path);
-void es_close_write(ES_writer* writer);
+ES_writer* es_open_writer(char* path);
+void es_close_writer(ES_writer* writer);
 ES_batch* es_alloc_batch(ES_writer* writer, 
-	uint32_t domain_id, 
-	uint32_t kind_id, 
-	uint64_t aggregate_id, 
-	char count);
+	uint32_t domain_id, 		/* Application partition */
+	uint32_t kind_id, 			/* Kind partition (aggregate type) */
+	uint64_t aggregate_id,		/* Aggregate instance ids (event partition) */
+	char size,					/* 2s compliment size of data to allocate in the buffers */
+	char count);				/* Number of contiguous buffers to allocate */
 void es_publish_batch(ES_batch* batch);
 
 
