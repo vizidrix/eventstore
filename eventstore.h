@@ -4,20 +4,18 @@
 #include <stdarg.h> /* Needed for the definition of va_list */
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <string.h>
 
 #include <unistd.h>
 
 #include <sys/uio.h>
-#ifdef HAVE_SYS_FILE_H
-#include <sys/file.h>
-#endif
-#include <fcntl.h>
+
+//#include <fcntl.h>
 
 #include <sys/mman.h>
 #include <sys/types.h>
-#include <sys/stat.h>
+//#include <sys/stat.h>
 #include <errno.h>
 
 #include <sys/socket.h>
@@ -25,7 +23,6 @@
 /*
 
 #include <sys/param.h>
-
 #include <assert.h>
 #include <limits.h>
 #include <stddef.h>
@@ -78,17 +75,17 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 //#define ES_MAP_RESIZED					(ES_ERROR - 7)		/** Database contents grew benyond environment mapsize */
 //#define ES_INCOMPATIBLE					(ES_ERROR - 8)		/** Database flags changes (or would change) */
 
-#define ES_FILE_NOTFOUND 				(ES_ERROR - 100)	/** ES file was not found */
-#define ES_FILE_INVALID 				(ES_ERROR - 200)	/** ES file is invalid */
+////#define ES_FILE_NOTFOUND 				(ES_ERROR - 100)	/** ES file was not found */
+////#define ES_FILE_INVALID 				(ES_ERROR - 200)	/** ES file is invalid */
 
-#define ES_SETTINGS_FILE_NOTFOUND 		(ES_FILE_NOTFOUND - 1)	/** ES Settings file was not found */
-#define ES_SETTINGS_FILE_INVALID 		(ES_FILE_INVALID - 1)	/** ES Settings file is invalid */
-#define ES_HEADER_FILE_NOTFOUND 		(ES_FILE_NOTFOUND - 2)	/** ES Header file was not found */
-#define ES_HEADER_FILE_INVALID 			(ES_FILE_INVALID - 2)	/** ES Header file is invalid */
-#define ES_GEN_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 3)	/** ES Generation file was not found */
-#define ES_GEN_FILE_INVALID 			(ES_FILE_INVALID - 3)	/** ES Generation file is invalid */
-#define ES_DATA_FILE_NOTFOUND 			(ES_FILE_NOTFOUND - 10)	/** ES Data file was not found */
-#define ES_DATA_FILE_INVALID 			(ES_FILE_INVALID - 10)	/** ES Data file is invalid */
+#define ES_SETTINGS_FILE_NOTFOUND 		(FILEIO_NOTFOUND - 1)	/** ES Settings file was not found */
+#define ES_SETTINGS_FILE_INVALID 		(FILEIO_INVALID - 1)	/** ES Settings file is invalid */
+#define ES_HEADER_FILE_NOTFOUND 		(FILEIO_NOTFOUND - 2)	/** ES Header file was not found */
+#define ES_HEADER_FILE_INVALID 			(FILEIO_INVALID - 2)	/** ES Header file is invalid */
+#define ES_GEN_FILE_NOTFOUND 			(FILEIO_NOTFOUND - 3)	/** ES Generation file was not found */
+#define ES_GEN_FILE_INVALID 			(FILEIO_INVALID - 3)	/** ES Generation file is invalid */
+#define ES_DATA_FILE_NOTFOUND 			(FILEIO_NOTFOUND - 10)	/** ES Data file was not found */
+#define ES_DATA_FILE_INVALID 			(FILEIO_INVALID - 10)	/** ES Data file is invalid */
 
 
 /** @} */
@@ -120,13 +117,14 @@ typedef struct ES_batch ES_batch;
 
 typedef struct ES_command ES_command;
 
+
+
 ES_writer* es_open_writer(char* path);
 void es_close_writer(ES_writer* writer);
 ES_batch* es_alloc_batch(ES_writer* writer, 
 	uint32_t domain_id, 		/* Application partition */
 	uint32_t kind_id, 			/* Kind partition (aggregate type) */
 	uint64_t aggregate_id,		/* Aggregate instance ids (event partition) */
-	//char size,					/* 2s compliment size of data to allocate in the buffers */
 	char count);				/* Number of contiguous buffers to allocate */
 void es_publish_batch(ES_batch* batch);
 

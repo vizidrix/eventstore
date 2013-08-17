@@ -1,3 +1,4 @@
+#include "fio.h"
 #include "eventstore.h"
 
 /***********************************************************************************************************
@@ -34,26 +35,11 @@ char * es_version(int *major, int *minor, int *patch)
 
 
 /** Stamp to identify a file as ES valid and check for byte oder */
-#define ES_FILE_KEY			"ES_HEADER_V_0x0001_DATA_V_0x0001"
-#define ES_FILE_KEY_SIZE	sizeof(ES_FILE_KEY)
-
-#define FLAGS_READ_ONLY 				O_RDONLY
-#define FLAGS_WRITE_ONLY				O_WRONLY
-#define FLAGS_TRUNK						O_TRUNC
-#define FLAGS_READ_CREATE 				O_READ | O_CREAT
-#define FLAGS_READ_WRITE_CREATE			O_RDWR | O_CREAT
-
-#define MODE_READ 						0444
-#define MODE_WRITE 						0222
-#define MODE_EXEC 						0111
-#define MODE_READ_WRITE 				MODE_READ | MODE_WRITE
-#define MODE_READ_WRITE_EXEC			MODE_READ | MODE_WRITE | MODE_EXEC
+#define ES_FILE_KEY						"ES_HEADER_V_0x0001_DATA_V_0x0001"
+#define ES_FILE_KEY_SIZE				sizeof(ES_FILE_KEY)
 
 #define MMAP_READ 						PROT_READ
 #define MMAP_READ_WRITE					PROT_READ | PROT_WRITE
-
-#define HANDLE 							int 						/** An abstraction for a file handle. */
-#define INVALID_HANDLE_VALUE 			(-1)
 
 /******************************************************
 =======================================================
@@ -87,16 +73,6 @@ char * es_version(int *major, int *minor, int *patch)
  *		Database Types
  *
  ****************************************************************************/
-
-	/** Abstraction which wraps both file handle and memmap handles */
-typedef struct ES_file_handle {
- 	int 			error;			/** < Placeholder for error codes related to the file handle */
-	char *			path;			/** < Physical path to the file referenced */
-	HANDLE 			file_handle;	/** < Handle to the os file */
-	off_t 			file_size;		/** < Size of the file on disk */
-	struct stat 	file_info;		/** < File info from the os */
-} ES_file_handle;
-
 
 typedef struct ES_data_barrier {
 	uint64_t			seq_num;			/** < Index of the last entry released */
@@ -201,9 +177,11 @@ struct ES_writer {
 	//uint64_t				completed_gen_counter;	/** < The last completed generation id */
 	//uint64_t				batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
 
-	ES_file_handle*			header_file;			/** < Handle for managing the header file */
+	fio_handle*			header_file;			/** < Handle for managing the header file */
+	//ES_file_handle*			header_file;			/** < Handle for managing the header file */
 	//ES_file_handle*			gen_file;				/** < Handle for any active generations */
-	ES_file_handle*			data_files[16];			/** < Handles for managing the data file */
+	//ES_file_handle*			data_files[16];			/** < Handles for managing the data file */
+	fio_handle*			data_files[16];			/** < Handles for managing the data file */
 	
 	//ES_mmap_handle *		gen_mmap;				/** < Mmap over the header of the gen file */
 
@@ -299,72 +277,11 @@ void DebugPrint(const char* format, ...) {
 
 /****************************************************************************
  *
- *		Disk and Memory Methods
+ *		Memory Methods
  *
  ****************************************************************************/
 
-int es_open_file_handle(ES_file_handle** handle_ptr, char* dir_path, char* file_name, int flags, int mode) {
-	// Allocate the memory to hold the handle
-	*handle_ptr = malloc(sizeof(ES_file_handle));
-	ES_file_handle* handle = *handle_ptr;
-	// Get the size of the base path and file for str cat operations
-	size_t dir_path_len = strlen(dir_path) + 1;
-	size_t file_name_len = strlen(file_name) + 1;
-	// Build the data file path by concat dir_path + file_name
-	handle->path = (char*)malloc(dir_path_len + file_name_len);
-	strcpy(handle->path, dir_path);
-	strcat(handle->path, file_name);
-#ifdef ES_RESET_FILES
-	// Delete the files first if the flag is set
-	remove(handle->path);
-#endif
-	// Use the constructed path to try and open the db files
-	handle->file_handle = open(handle->path, flags, mode);
-	// Make sure the file opened successfully
-	if (handle->file_handle == INVALID_HANDLE_VALUE) {
-		perror("error opening file");
-		return 1;
-	}
-	// Grab the file's info
-	if (fstat(handle->file_handle, &handle->file_info) == -1) {
-		perror("error retrieving file info");
-		return 1;
-	}
-	// Make sure it's actually a file
-	if (!S_ISREG(handle->file_info.st_mode)) {
-		fprintf (stderr, "%s is not a file\n", handle->path);
-		return 1;
-	}
-	// Copy the size up to the structure (for easier access)
-	handle->file_size = handle->file_info.st_size;
-	//DebugPrint("Loaded file [%s] Size: %d Mb", handle->path, handle->file_size >> 20);
-
-	return 0;
-}
-
-void es_close_file_handle(ES_file_handle* handle) {
-	// Make sure file reference is closed
-	close(handle->file_handle);
-	// Free the path string
-	free(handle->path);
-	// Free the handle itself
-	free(handle);
-}
-
-int es_verify_file_size(ES_file_handle* handle, off_t file_size) {
-	if (handle->file_size < file_size) {
-		ftruncate(handle->file_handle, file_size);
-		handle->file_size = file_size;
-	}
-	if (handle->file_size != file_size) {
-		perror("file size out of sync");
-		return 1;
-	}
-
-	return 0;
-}
-
-void es_load_write_buffer(ES_writer* writer, uint32_t buffer_size) {
+void es_init_write_buffer(ES_writer* writer, uint32_t buffer_size) {
 	ES_write_buffer * buffer = malloc(sizeof(ES_write_buffer));
 
 	buffer->seq_num = 0;
@@ -506,7 +423,7 @@ ES_writer* es_open_writer(char* path) {
 	//if (op_result > 0) { perror("Error opening generations file"); return NULL; }
 
 
-	es_load_write_buffer(writer, 1<<12/*4096*/);//, 1<<12<<12/*4096*4096*/);
+	es_init_write_buffer(writer, 1<<12/*4096*/);//, 1<<12<<12/*4096*4096*/);
 
 	//es_load_gen_header(writer);
 
@@ -520,7 +437,7 @@ ES_writer* es_open_writer(char* path) {
 	return writer;
 }
 
-void es_close_writer(ES_writer* writer) {
+void es_close_writer(struct ES_writer* writer) {
 	es_close_write_buffer(writer);
 	//free(writer->commands);
 	//es_close_mmap_handle(writer->generations_mmap, writer->generations_file->file_size);
@@ -529,7 +446,7 @@ void es_close_writer(ES_writer* writer) {
 	//DebugPrint("Closed writer");
 }
 
-ES_batch* es_alloc_batch(ES_writer* writer, 
+ES_batch* es_alloc_batch(struct ES_writer* writer, 
 	uint32_t domain_id, 
 	uint32_t kind_id, 
 	uint64_t aggregate_id,
