@@ -36,19 +36,41 @@ func Test_Should_put_single_event_into_write_store(t *testing.T) {
 	//writer.AllocBatch(domain, kind, aggregate, 4)
 	//writer.AllocBatch(domain, kind, aggregate, 4)
 
-	batch, err := writer.AllocBatch(domain, kind, aggregate, 9, 4)
+	future, err := writer.Put(domain, kind, aggregate,
+		goes.ESEvent{4, data[0]},
+		goes.ESEvent{6, data[1]},
+		goes.ESEvent{8, data[2]},
+		goes.ESEvent{10, data[3]})
 	if err != nil {
-		log.Printf("Error allocating branch: %s", err)
+		t.Fail()
 	}
+	log.Printf("Future: %s", future)
+	/*
+		select {
+		case <-future.ErrorChan:
+			{
+				t.Fail()
+			}
+		case <-future.Complete:
+			{
+				log.Printf("Put complete")
+			}
+		}
+	*/
+	/*
+		batch, err := writer.AllocBatch(domain, kind, aggregate, 4)
+		if err != nil {
+			log.Printf("Error allocating branch: %s", err)
+		}
 
-	for i := 0; i < 4; i++ {
-		batch.Entries[i].EventType = uint16(i)
-		batch.Entries[i].EventSize = uint16(len(data[i]))
-		batch.Entries[i].CopyFrom(data[i])
-		//copy(batch.Entries[i].GetEventData()[:], data[i])
-	}
-	batch.Publish()
-
+		for i := 0; i < 4; i++ {
+			batch.Entries[i].EventType = uint16(i)
+			batch.Entries[i].EventSize = uint16(len(data[i]))
+			batch.Entries[i].CopyFrom(data[i])
+			//copy(batch.Entries[i].GetEventData()[:], data[i])
+		}
+		batch.Publish()
+	*/
 	// get a set of put commands from db
 	// wrap them in managed slices
 	// fill them over here from wherever

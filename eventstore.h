@@ -115,10 +115,10 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 
 typedef struct ES_writer ES_writer;
 
-typedef struct ES_batch_entry ES_batch_entry;
+//typedef struct ES_batch_entry ES_batch_entry;
 typedef struct ES_batch ES_batch;
 
-//typedef struct ES_put_command ES_put_command;
+typedef struct ES_command ES_command;
 
 ES_writer* es_open_writer(char* path);
 void es_close_writer(ES_writer* writer);
@@ -126,7 +126,7 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	uint32_t domain_id, 		/* Application partition */
 	uint32_t kind_id, 			/* Kind partition (aggregate type) */
 	uint64_t aggregate_id,		/* Aggregate instance ids (event partition) */
-	char size,					/* 2s compliment size of data to allocate in the buffers */
+	//char size,					/* 2s compliment size of data to allocate in the buffers */
 	char count);				/* Number of contiguous buffers to allocate */
 void es_publish_batch(ES_batch* batch);
 

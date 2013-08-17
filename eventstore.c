@@ -97,36 +97,50 @@ typedef struct ES_file_handle {
 	struct stat 	file_info;		/** < File info from the os */
 } ES_file_handle;
 
+
+typedef struct ES_data_barrier {
+	uint64_t			seq_num;			/** < Index of the last entry released */
+} ES_data_barrier;
+
+typedef struct ES_write_buffer {
+	uint64_t			seq_num;			/** < Index of next available entry in the buffer */
+	ES_data_barrier *	producer_barrier;	
+	ES_command *		command_buffer;		/** < Pre-allocated block of commands for batches */
+	void *				data_buffer;		/** < Pre-allocated, contiguous block of data used to copy data in */
+} ES_write_buffer;
+
+
+// Write to ring -> 
+//		calc CRC -> 
+//			scan forward until
+//			a) as far as possible with certain batch end reached
+//				(must see next batch id to know current is finished)
+//			b) memory buffer exceeds 4k buffer (roll back to last batch id)
+//			- Write batch off to disk through data distribution logic
+//			- Identify this batch as a "generation" to enable generational read/index concept
+//		update index
+
 //typedef struct ES_mmap_handle {
 //	void *			mmap_handle;	/** < Memory mapped view of the file */
 //	off_t			size;			/** < Size of mmap overlay over file */
 //	off_t			offset;			/** < Byte offset from beginning of file */
 //} ES_mmap_handle;
 
-typedef struct ES_put_command {
-	uint32_t		crc;							/** < 32bit checksum of type+data */
-	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
-	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
-	uint32_t		kind_id;
-	uint64_t		aggregate_id;
-	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
-	uint16_t		event_size;						/** < Length of the event data */
-	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
-} ES_put_command; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
 
-typedef struct ES_put_event {
-	char 			event_type; // Either [ BATCH_COMPLETE | COMMAND_COMPLETE ]
-	uint64_t		id;
-} ES_put_event;
+
+//typedef struct ES_put_event {
+//	char 			event_type; // Either [ BATCH_COMPLETE | COMMAND_COMPLETE ]
+//	uint64_t		id;
+//} ES_put_event;
 
 
 	/** Root management structure for the gen file */
-typedef struct ES_gen_file {
-	uint64_t		done_gen_index;			/** < Index of the last completed gen */
-	uint64_t		next_gen_index;			/** < Index to be allocated to the next gen */
-	uint64_t		batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
+//typedef struct ES_gen_file {
+//	uint64_t		done_gen_index;			/** < Index of the last completed gen */
+//	uint64_t		next_gen_index;			/** < Index to be allocated to the next gen */
+//	uint64_t		batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
 
-} ES_gen_file;
+//} ES_gen_file;
 
 /*
 New id's are seperated from existing id's
@@ -145,20 +159,20 @@ and start writing to the next
 http://www.cse.ohio-state.edu/~zhang/hpca11-submitted.pdf
 
 */
-typedef struct ES_gen {
-	uint64_t		gen_index;			/** Index assigned to this page */
-	char			page_count;			/** Number of pages in this gen */
-
-	uint16_t		data_size;			/** Cumulative raw data size in the insert of this gen */
-
-} ES_gen;
+//typedef struct ES_gen {
+//	uint64_t		gen_index;			/** Index assigned to this page */
+//	char			page_count;			/** Number of pages in this gen */
+//
+//	uint16_t		data_size;			/** Cumulative raw data size in the insert of this gen */
+//
+//} ES_gen;
 
 	/** Page management structure for the gen file */
-typedef struct ES_gen_page {
-
-	uint64_t		event_count;		/** Number of events in the page */
-	void *			mmap_handle;		/** Pointer to this section of the generation file */
-} ES_gen_page;
+//typedef struct ES_gen_page {
+//
+//	uint64_t		event_count;		/** Number of events in the page */
+//	void *			mmap_handle;		/** Pointer to this section of the generation file */
+//} ES_gen_page;
 
 //typedef struct ES_cursor {
 //	char * 			dest;
@@ -183,33 +197,59 @@ typedef struct ES_gen_page {
 struct ES_writer {
 	char *					file_path;				/** < Path to the db files */
 
-	uint64_t				next_gen_counter;		/** < Counter is the next generation id to issue */
-	uint64_t				completed_gen_counter;	/** < The last completed generation id */
-	uint64_t				batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
+	//uint64_t				next_gen_counter;		/** < Counter is the next generation id to issue */
+	//uint64_t				completed_gen_counter;	/** < The last completed generation id */
+	//uint64_t				batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
 
 	ES_file_handle*			header_file;			/** < Handle for managing the header file */
-	ES_file_handle*			gen_file;				/** < Handle for any active generations */
+	//ES_file_handle*			gen_file;				/** < Handle for any active generations */
 	ES_file_handle*			data_files[16];			/** < Handles for managing the data file */
 	
 	//ES_mmap_handle *		gen_mmap;				/** < Mmap over the header of the gen file */
+
+	ES_write_buffer *		write_buffer;
 };
 
-struct ES_batch_entry {
-	char			command_id;
-	uint16_t		event_type;
-	uint16_t		event_size;
-	char *			event_data;
+struct ES_command {
+	uint64_t		command_id;						/** <  First 56 bits are batch id, last 8 bits are command id */
+	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
+	uint32_t		kind_id;
+	uint64_t		aggregate_id;
+	uint32_t		crc;							/** < 32bit checksum of type+size+data */
+	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
+	uint16_t		event_size;						/** < Length of the event data */
+	char			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
 };
 
-struct ES_batch {
-	uint64_t			batch_id;
-	uint32_t			domain_id;
-	uint32_t			kind_id;
-	uint64_t			aggregate_id;
-	char				buffer_size;
-	char				batch_size;
-	ES_batch_entry * 	entries;
-};
+//typedef struct ES_put_command {
+//	uint32_t		crc;							/** < 32bit checksum of type+data */
+//	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
+//	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
+//	uint32_t		kind_id;
+//	uint64_t		aggregate_id;
+//	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
+//	uint16_t		event_size;						/** < Length of the event data */
+//	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
+//} ES_put_command; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
+
+//struct ES_batch_entry {
+//	char			command_id;
+//	uint16_t		event_type;
+//	uint16_t		event_size;
+//	uint32_t		crc;
+//	off_t			mmap_offset;
+//	char *			event_data;
+//};
+
+//struct ES_batch {
+//	uint64_t			batch_id;
+//	uint32_t			domain_id;
+//	uint32_t			kind_id;
+//	uint64_t			aggregate_id;
+//	char				buffer_size;
+//	char				batch_size;
+//	ES_batch_entry * 	entries;
+//};
 
 /***************************************************************************
 ============================================================================
@@ -324,6 +364,23 @@ int es_verify_file_size(ES_file_handle* handle, off_t file_size) {
 	return 0;
 }
 
+void es_load_write_buffer(ES_writer* writer, uint32_t buffer_size) {
+	ES_write_buffer * buffer = malloc(sizeof(ES_write_buffer));
+
+	buffer->seq_num = 0;
+	// Allocate enough room for the specified number of entries
+	buffer->command_buffer = malloc(sizeof(ES_command) * buffer_size);
+	//buffer->data_buffer = malloc(data_buffer_size);
+	writer->write_buffer = buffer;
+	DebugPrint("Made buffer: [ %d ]", sizeof(ES_command) * buffer_size);
+
+}
+
+void es_close_write_buffer(ES_writer* writer) {
+	free(writer->write_buffer->command_buffer);
+
+	free(writer->write_buffer);
+}
 /*
 int es_open_mmap_handle(ES_mmap_handle** handle_ptr, ES_file_handle* file, off_t offset, off_t size, int mmap_mode) {
 	// Allocate the memory to hold the handle
@@ -352,11 +409,12 @@ void es_close_mmap_handle(ES_mmap_handle* handle, off_t size) {
 }
 */
 
-uint64_t es_get_batch_id(ES_writer* writer) {
-	writer->batch_counter++;
-	return writer->batch_counter;
-}
+//uint64_t es_get_batch_id(ES_writer* writer) {
+//	writer->batch_counter++;
+//	return writer->batch_counter;
+//}
 
+/*
 void es_print_batch(ES_batch* batch) {
 	DebugPrint("** Publishing **");
 	DebugPrint("Batch Id: %d", batch->batch_id);
@@ -372,6 +430,7 @@ void es_print_batch(ES_batch* batch) {
 		DebugPrint("Event Size: %d", batch->entries[i].event_size);
 	}
 }
+*/
 
 void es_load_gen_header(ES_writer* writer) {
 	int op_result = 0;
@@ -379,17 +438,18 @@ void es_load_gen_header(ES_writer* writer) {
 	int generations_file_header_size = 1024;
 	int generations_file_data_size = 65536;//4096;
 	int max_generations = 6;
-	int generations_file_size = generations_file_header_size + (generations_file_data_size * max_generations);
-	es_verify_file_size(writer->gen_file, generations_file_size);
+	//int generations_file_size = generations_file_header_size + (generations_file_data_size * max_generations);
+	//es_verify_file_size(writer->gen_file, generations_file_size);
 	
 	// Load the batch_id from storage on load
 	//void* gen_map =mmap(NULL, 4096, MMAP_READ_WRITE, MAP_SHARED, writer->gen_file->file_handle, 0);
-	void* gen_map = mmap(NULL, 4096, MMAP_READ_WRITE, MAP_SHARED, writer->gen_file->file_handle, 0);
-	ES_gen_file *gen = (ES_gen_file*)gen_map;
-	gen->done_gen_index = 300;
-	gen->next_gen_index = 400;
-	DebugPrint("Gen: %d", gen->done_gen_index);
-	DebugPrint("Gen: %d", gen->next_gen_index);
+	
+	//void* gen_map = mmap(NULL, 4096, MMAP_READ_WRITE, MAP_SHARED, writer->gen_file->file_handle, 0);
+	//ES_gen_file *gen = (ES_gen_file*)gen_map;
+	//gen->done_gen_index = 300;
+	//gen->next_gen_index = 400;
+	//DebugPrint("Gen: %d", gen->done_gen_index);
+	//DebugPrint("Gen: %d", gen->next_gen_index);
 
 
 	//op_result = es_open_mmap_handle(
@@ -442,11 +502,13 @@ ES_writer* es_open_writer(char* path) {
 	// Allocate memory for use by the writer struct
 	ES_writer * writer = malloc(sizeof(ES_writer));
 	// Open the file in Read/Write/Create mode
-	op_result = es_open_file_handle(&writer->gen_file, path, ES_DATA_GEN_FILE_NAME, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);
-	if (op_result > 0) { perror("Error opening generations file"); return NULL; }
+	//op_result = es_open_file_handle(&writer->gen_file, path, ES_DATA_GEN_FILE_NAME, FLAGS_READ_WRITE_CREATE, MODE_READ_WRITE);
+	//if (op_result > 0) { perror("Error opening generations file"); return NULL; }
 
 
-	es_load_gen_header(writer);
+	es_load_write_buffer(writer, 1<<12/*4096*/);//, 1<<12<<12/*4096*4096*/);
+
+	//es_load_gen_header(writer);
 
 	// finish opening the mmap
 	// use the mmap data as a command source
@@ -459,9 +521,10 @@ ES_writer* es_open_writer(char* path) {
 }
 
 void es_close_writer(ES_writer* writer) {
+	es_close_write_buffer(writer);
 	//free(writer->commands);
 	//es_close_mmap_handle(writer->generations_mmap, writer->generations_file->file_size);
-	es_close_file_handle(writer->gen_file);
+	//es_close_file_handle(writer->gen_file);
 	free(writer);
 	//DebugPrint("Closed writer");
 }
@@ -470,9 +533,21 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	uint32_t domain_id, 
 	uint32_t kind_id, 
 	uint64_t aggregate_id,
+	char count) {
+	// Get batch id
+
+	// Alloc count commands from buffer
+	// Populate default values
+	// Empty bucket
+}
+/*
+ES_batch* es_alloc_batch(ES_writer* writer, 
+	uint32_t domain_id, 
+	uint32_t kind_id, 
+	uint64_t aggregate_id,
 	char size,
 	char count) {
-	//DebugPrint("[es.....c]\tAllocating Batch: %d", count);
+	DebugPrint("[es.....c]\tAllocating Batchs: %d of %d", count, 1<<size);
 	if(size > 12) {
 		perror("Max buffer size is 4096");
 		return NULL;
@@ -480,7 +555,7 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 
 	// Need to make a batch
 	ES_batch* batch = malloc(sizeof(ES_batch));
-	batch->batch_id = es_get_batch_id(writer);
+	batch->batch_id = 0;//es_get_batch_id(writer);
 	batch->domain_id = domain_id;
 	batch->kind_id = kind_id;
 	batch->aggregate_id = aggregate_id;
@@ -494,7 +569,7 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 		batch->entries[i].event_type = 0;
 		batch->entries[i].event_size = 0;
 		// Need to change this to point to the correct slot in generation mmap
-		batch->entries[i].event_data = malloc(1 >> size);
+		batch->entries[i].event_data = malloc(1 << size);
 
 		//for(j = 0; j < ES_MAX_DATA_SIZE; j++) {
 		//	batch->entries[i].event_data[j] = j * i;
@@ -504,15 +579,16 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 
 	return batch;
 }
+*/
 
 void es_publish_batch(ES_batch* batch) {
 	// perform publish actions
 	//es_print_batch(batch);
-	int i = 0;
-	for(i = 0; i < batch->batch_size; i++) {
-		free(batch->entries[i].event_data);
-	}
-	free(batch->entries);
+	//int i = 0;
+	//for(i = 0; i < batch->batch_size; i++) {
+	//	free(batch->entries[i].event_data);
+	//}
+	//free(batch->entries);
 	//free(batch);
 	
 }

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	MAX_EVENT_SIZE = 512 - 32
+	MAX_EVENT_SIZE = 1024 - 32 //512 - 32
 )
 
 type ESWriter struct {
@@ -22,10 +22,22 @@ type ESWriter struct {
 	db_handle *[0]byte
 }
 
+type ESEvent struct {
+	EventType uint16
+	EventData []byte
+}
+
+type ESPutFuture struct {
+	Complete  chan struct{}
+	ErrorChan chan struct{}
+}
+
 type ESBatchEntry struct {
 	CommandId byte
 	EventType uint16
 	EventSize uint16
+	CRC       uint32
+	Blank_01  uint64
 	EventData *[]byte
 }
 
@@ -57,6 +69,18 @@ func (writer *ESWriter) Close() {
 	C.es_close_writer(writer.db_handle)
 }
 
+func (writer *ESWriter) Put(
+	domain uint32,
+	kind uint32,
+	aggregate uint64,
+	events ...ESEvent) (*ESPutFuture, error) {
+	return &ESPutFuture{
+		Complete:  make(chan struct{}, 1),
+		ErrorChan: make(chan struct{}, 1),
+	}, nil
+}
+
+/*
 func (writer *ESWriter) AllocBatch(
 	domain uint32,
 	kind uint32,
@@ -100,6 +124,17 @@ func (batch *ESBatch) Publish() {
 	C.es_publish_batch((*[0]byte)(unsafe.Pointer(batch)))
 }
 
+func (entry *ESBatchEntry) GetEventData() []byte {
+	return (*[MAX_EVENT_SIZE]byte)((unsafe.Pointer)(entry.EventData))[:]
+}
+
+func (entry *ESBatchEntry) CopyFrom(src []byte) {
+	copy((*[MAX_EVENT_SIZE]byte)((unsafe.Pointer)(entry.EventData))[:], src)
+}
+
+*/
+
+/*
 func (entry *ESBatchEntry) GetEventData() *[MAX_EVENT_SIZE]byte {
 	return (*[MAX_EVENT_SIZE]byte)((unsafe.Pointer)(entry.EventData))
 }
@@ -107,7 +142,7 @@ func (entry *ESBatchEntry) GetEventData() *[MAX_EVENT_SIZE]byte {
 func (entry *ESBatchEntry) CopyFrom(src []byte) {
 	copy((*[MAX_EVENT_SIZE]byte)((unsafe.Pointer)(entry.EventData))[:], src)
 }
-
+*/
 func es_write_ignore() {
 	log.Println(fmt.Sprintf("", 10))
 	log.Printf("", reflect.SliceHeader{}, errors.New("stuff"), strings.HasPrefix("s", "q"), unsafe.Pointer(nil))
