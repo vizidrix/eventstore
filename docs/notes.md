@@ -130,4 +130,37 @@ events, err := es.Get("namespace", "person", id)
 
 
 
+New id's are seperated from existing id's
+- New id's can be streamed in as a batch
+- Existing id's can be split between quick append and realloc append
+	- If there is room in the block then just append to existing data
+	- If a data move is required then
+		- Do the relocation(s) in batche(s)
+		- Do the append into the newly available space
+
+
+On any publish, if data size of batch will exceed targeted
+block size (4k) for new id set then clamp the current gen 
+and start writing to the next
+
+http://www.cse.ohio-state.edu/~zhang/hpca11-submitted.pdf
+
+
+
+
+// Write to ring -> 
+//		calc CRC -> 
+//			scan forward until
+//			a) as far as possible with certain batch end reached
+//				(must see next batch id to know current is finished)
+//			b) memory buffer exceeds 4k buffer (roll back to last batch id)
+//			- Write batch off to disk through data distribution logic
+//			- Identify this batch as a "generation" to enable generational read/index concept
+//		update index
+
+
+
+
+
+
 

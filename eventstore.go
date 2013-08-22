@@ -1,12 +1,14 @@
 package eventstore
 
 /*
+#cgo LDFLAGS: -L/go/vizidrix/src/github.com/vizidrix/ringbuffer/
 #include "eventstore.h"
 */
 import "C"
 import (
 	"errors"
 	"fmt"
+	//"github.com/vizidrix/ringbuffer"
 	"log"
 	"reflect"
 	"strings"
@@ -67,6 +69,8 @@ type AggregatePartitioner interface {
 }
 
 func Connect(connString string) (EventStorer, error) {
+	//var temp C.rb_buffer
+	//C.rb_init_buffer(&temp, 10, 10)
 	if strings.HasPrefix(connString, "fs://") {
 		//es := EventStore{}
 		//es.Connect("/go/vizidrix/src/github.com/vizidrix/eventstore/data/")

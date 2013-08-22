@@ -111,7 +111,9 @@ int fio_close(struct fio_handle* handle) {
 
 int fio_set_size(struct fio_handle* handle, off_t file_size) {
 	if (handle->file_size < file_size) {
-		ftruncate(handle->file_handle, file_size);
+		if(ftruncate(handle->file_handle, file_size) != 0) {
+			return 1;
+		}
 		handle->file_size = file_size;
 	}
 	if (handle->file_size != file_size) {

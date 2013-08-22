@@ -1,26 +1,14 @@
 #include "fio.h"
+#include "util.h"
+#define __extern_golang
+#include "../ringbuffer/ringbuffer.h"
+
 #include "eventstore.h"
-
-/***********************************************************************************************************
-============================================================================================================
-=        ==  ====  ==        ==  =======  ==        ===      ===        ====    ====       ===        ======
-=  ========  ====  ==  ========   ======  =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
-=  ========  ====  ==  ========    =====  =====  =====  ====  =====  =====  ====  ==  ====  ==  ============
-=  ========  ====  ==  ========  ==  ===  =====  ======  ==========  =====  ====  ==  ===   ==  ============
-=      ====   ==   ==      ====  ===  ==  =====  ========  ========  =====  ====  ==      ====      ========
-=  =========  ==  ===  ========  ====  =  =====  ==========  ======  =====  ====  ==  ====  ==  ============
-=  =========  ==  ===  ========  =====    =====  =====  ====  =====  =====  ====  ==  ====  ==  ============
-=  ==========    ====  ========  ======   =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
-=        =====  =====        ==  =======  =====  ======      ======  =======    ====  ====  ==        ======
-============================================================================================================
-***********************************************************************************************************/
-
-// Thanks for the ASCII comment blocks!  (Reverse font) http://patorjk.com/software/taag/
 
 // Uncomment this to wipe out files between runs
 //#define ES_RESET_FILES
 
-char * es_version(int *major, int *minor, int *patch)
+char *es_version(int *major, int *minor, int *patch)
 {
 	if (major) *major = ES_VERSION_MAJOR;
 	if (minor) *minor = ES_VERSION_MINOR;
@@ -28,32 +16,8 @@ char * es_version(int *major, int *minor, int *patch)
 	return ES_VERSION_STRING;
 }
 
-#define ES_SETTINGS_FILE_NAME		"es_settings_file.esdb.txt"
-#define ES_HEADER_FILE_NAME 		"es_header_file.esdb.txt"
-#define ES_DATA_GEN_FILE_NAME		"es_data_gen_file.esdb.txt"
-#define ES_DATA_FILE_NAME 			"es_data_file_%02d.esdb.txt"
-
-
-/** Stamp to identify a file as ES valid and check for byte oder */
-#define ES_FILE_KEY						"ES_HEADER_V_0x0001_DATA_V_0x0001"
-#define ES_FILE_KEY_SIZE				sizeof(ES_FILE_KEY)
-
 #define MMAP_READ 						PROT_READ
 #define MMAP_READ_WRITE					PROT_READ | PROT_WRITE
-
-/******************************************************
-=======================================================
-=        ==  ====  ==       ===        ===      =======
-====  =====   ==   ==  ====  ==  ========  ====  ======
-====  ======  ==  ===  ====  ==  ========  ============
-====  =======    ====       ===      =======  =========
-====  ========  =====  ========  =============  =======
-====  ========  =====  ========  ========  ====  ======
-====  ========  =====  ========        ===      =======
-=======================================================
-******************************************************/
-
-
 
 /**********************************************************************
 =======================================================================
@@ -74,6 +38,17 @@ char * es_version(int *major, int *minor, int *patch)
  *
  ****************************************************************************/
 
+typedef struct ES_command {
+	uint64_t		command_id;						/** <  First 56 bits are batch id, last 8 bits are command id */
+	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
+	uint32_t		kind_id;
+	uint64_t		aggregate_id;
+	uint32_t		crc;							/** < 32bit checksum of type+size+data */
+	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
+	uint16_t		event_size;						/** < Length of the event data */
+	char			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
+} ES_command; // 8 + 4 + 4 + 8 + 4 + 2 + 2 = 32 bytes of overhead / command
+
 typedef struct ES_data_barrier {
 	uint64_t			seq_num;			/** < Index of the last entry released */
 } ES_data_barrier;
@@ -85,195 +60,9 @@ typedef struct ES_write_buffer {
 	void *				data_buffer;		/** < Pre-allocated, contiguous block of data used to copy data in */
 } ES_write_buffer;
 
-
-// Write to ring -> 
-//		calc CRC -> 
-//			scan forward until
-//			a) as far as possible with certain batch end reached
-//				(must see next batch id to know current is finished)
-//			b) memory buffer exceeds 4k buffer (roll back to last batch id)
-//			- Write batch off to disk through data distribution logic
-//			- Identify this batch as a "generation" to enable generational read/index concept
-//		update index
-
-//typedef struct ES_mmap_handle {
-//	void *			mmap_handle;	/** < Memory mapped view of the file */
-//	off_t			size;			/** < Size of mmap overlay over file */
-//	off_t			offset;			/** < Byte offset from beginning of file */
-//} ES_mmap_handle;
-
-
-
-//typedef struct ES_put_event {
-//	char 			event_type; // Either [ BATCH_COMPLETE | COMMAND_COMPLETE ]
-//	uint64_t		id;
-//} ES_put_event;
-
-
-	/** Root management structure for the gen file */
-//typedef struct ES_gen_file {
-//	uint64_t		done_gen_index;			/** < Index of the last completed gen */
-//	uint64_t		next_gen_index;			/** < Index to be allocated to the next gen */
-//	uint64_t		batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
-
-//} ES_gen_file;
-
-/*
-New id's are seperated from existing id's
-- New id's can be streamed in as a batch
-- Existing id's can be split between quick append and realloc append
-	- If there is room in the block then just append to existing data
-	- If a data move is required then
-		- Do the relocation(s) in batche(s)
-		- Do the append into the newly available space
-
-
-On any publish, if data size of batch will exceed targeted
-block size (4k) for new id set then clamp the current gen 
-and start writing to the next
-
-http://www.cse.ohio-state.edu/~zhang/hpca11-submitted.pdf
-
-*/
-//typedef struct ES_gen {
-//	uint64_t		gen_index;			/** Index assigned to this page */
-//	char			page_count;			/** Number of pages in this gen */
-//
-//	uint16_t		data_size;			/** Cumulative raw data size in the insert of this gen */
-//
-//} ES_gen;
-
-	/** Page management structure for the gen file */
-//typedef struct ES_gen_page {
-//
-//	uint64_t		event_count;		/** Number of events in the page */
-//	void *			mmap_handle;		/** Pointer to this section of the generation file */
-//} ES_gen_page;
-
-//typedef struct ES_cursor {
-//	char * 			dest;
-//	off_t			size;
-//	off_t			position;
-//} ES_cursor;
-
-
-
-/***********************************************************
-============================================================
-=       ===  ====  ==      ===  ========    ====     =======
-=  ====  ==  ====  ==  ===  ==  =========  ====  ===  ======
-=  ====  ==  ====  ==  ===  ==  =========  ===  ============
-=       ===  ====  ==      ===  =========  ===  ============
-=  ========  ====  ==  ===  ==  =========  ===  ============
-=  ========   ==   ==  ===  ==  =========  ====  ===  ======
-=  =========      ===      ===        ==    ====     =======
-============================================================
-***********************************************************/
-
-struct ES_writer {
-	char *					file_path;				/** < Path to the db files */
-
-	//uint64_t				next_gen_counter;		/** < Counter is the next generation id to issue */
-	//uint64_t				completed_gen_counter;	/** < The last completed generation id */
-	//uint64_t				batch_counter;			/** < Batches are the lower 24 bits shifted by 8 to make room for batch count */
-
-	fio_handle*			header_file;			/** < Handle for managing the header file */
-	//ES_file_handle*			header_file;			/** < Handle for managing the header file */
-	//ES_file_handle*			gen_file;				/** < Handle for any active generations */
-	//ES_file_handle*			data_files[16];			/** < Handles for managing the data file */
-	fio_handle*			data_files[16];			/** < Handles for managing the data file */
-	
-	//ES_mmap_handle *		gen_mmap;				/** < Mmap over the header of the gen file */
-
-	ES_write_buffer *		write_buffer;
-};
-
-struct ES_command {
-	uint64_t		command_id;						/** <  First 56 bits are batch id, last 8 bits are command id */
-	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
-	uint32_t		kind_id;
-	uint64_t		aggregate_id;
-	uint32_t		crc;							/** < 32bit checksum of type+size+data */
-	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
-	uint16_t		event_size;						/** < Length of the event data */
-	char			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
-};
-
-//typedef struct ES_put_command {
-//	uint32_t		crc;							/** < 32bit checksum of type+data */
-//	uint64_t		command_id;						/** < First 56 bits are batch id, last 8 bits are command id */
-//	uint32_t		domain_id;						/** < Domain ID + Kind ID + Aggregate ID == 128 bits ~= UUID */
-//	uint32_t		kind_id;
-//	uint64_t		aggregate_id;
-//	uint16_t		event_type;						/** < Identifies the structure in the data blob to client */
-//	uint16_t		event_size;						/** < Length of the event data */
-//	char 			event_data[ES_MAX_DATA_SIZE];	/** < Bucket of data for the event */
-//} ES_put_command; // 4 + 8 + 4 + 4 + 8 + 2 + 2 = 32 bytes of overhead / command
-
-//struct ES_batch_entry {
-//	char			command_id;
-//	uint16_t		event_type;
-//	uint16_t		event_size;
-//	uint32_t		crc;
-//	off_t			mmap_offset;
-//	char *			event_data;
-//};
-
-//struct ES_batch {
-//	uint64_t			batch_id;
-//	uint32_t			domain_id;
-//	uint32_t			kind_id;
-//	uint64_t			aggregate_id;
-//	char				buffer_size;
-//	char				batch_size;
-//	ES_batch_entry * 	entries;
-//};
-
-/***************************************************************************
-============================================================================
-=  =====  ==        ==        ==  ====  ====    ====       ====      =======
-=   ===   ==  ===========  =====  ====  ===  ==  ===  ====  ==  ====  ======
-=  =   =  ==  ===========  =====  ====  ==  ====  ==  ====  ===  ===========
-=  == ==  ==      =======  =====        ==  ====  ==  ====  =====  =========
-=  =====  ==  ===========  =====  ====  ==  ====  ==  ====  =======  =======
-=  =====  ==  ===========  =====  ====  ===  ==  ===  ====  ==  ====  ======
-=  =====  ==        =====  =====  ====  ====    ====       ====      =======
-============================================================================
-***************************************************************************/
-
-
-
-/**********************************************************************
-=======================================================================
-=       ===       ===    ==  ====  =====  =====        ==        ======
-=  ====  ==  ====  ===  ===  ====  ====    =======  =====  ============
-=  ====  ==  ===   ===  ===  ====  ==  ====  =====  =====  ============
-=       ===      =====  ===   ==   ==  ====  =====  =====      ========
-=  ========  ====  ===  ====  ==  ===        =====  =====  ============
-=  ========  ====  ===  =====    ====  ====  =====  =====  ============
-=  ========  ====  ==    =====  =====  ====  =====  =====        ======
-=======================================================================
-**********************************************************************/
-
-
-
-/****************************************************************************
- *
- *		Helper Methods
- *
- ****************************************************************************/
-
-char debug_out[1000];
-void vDebugPrint(const char* format, va_list args) {
-	vsprintf(debug_out, format, args);
-	DebugPrintf(debug_out);
-}
-void DebugPrint(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	vDebugPrint(format, args);
-	va_end(args);
-}
+// finished generation counter
+// available generation counter <- seq_num of write buffer
+// batch counter
 
 /****************************************************************************
  *
@@ -288,15 +77,20 @@ void es_init_write_buffer(ES_writer* writer, uint32_t buffer_size) {
 	// Allocate enough room for the specified number of entries
 	buffer->command_buffer = malloc(sizeof(ES_command) * buffer_size);
 	//buffer->data_buffer = malloc(data_buffer_size);
-	writer->write_buffer = buffer;
+	//writer->write_buffer = buffer;
+	rb_buffer *buf;
+	rb_buffer **buf_ptr = &buf;
+	rb_init_buffer(buf_ptr, 2, 32); // New rules for sizing buffer
+	//rb_init_buffer(buf_ptr, 16, 1024);
+	rb_release_buffer(buf);
 	DebugPrint("Made buffer: [ %d ]", sizeof(ES_command) * buffer_size);
 
 }
 
 void es_close_write_buffer(ES_writer* writer) {
-	free(writer->write_buffer->command_buffer);
+	//free(writer->write_buffer->command_buffer);
 
-	free(writer->write_buffer);
+	//free(writer->write_buffer);
 }
 /*
 int es_open_mmap_handle(ES_mmap_handle** handle_ptr, ES_file_handle* file, off_t offset, off_t size, int mmap_mode) {
@@ -400,6 +194,31 @@ void es_load_gen_header(ES_writer* writer) {
 ***********************************************************/
 
 
+struct ES_writer {
+	char *					file_path;				/** < Path to the db files */
+
+	fio_handle *			header_file;			/** < Handle for managing the header file */
+	fio_handle *			data_files[16];			/** < Handles for managing the data file */
+	
+	ES_write_buffer *		write_buffer;
+};
+
+struct ES_batch_entry {
+	uint16_t		* event_type;
+	uint16_t		* event_size;
+	char			* event_data[ES_MAX_DATA_SIZE];
+};
+
+struct ES_batch {
+	uint64_t			batch_id;
+	uint32_t			domain_id;
+	uint32_t			kind_id;
+	uint64_t			aggregate_id;
+	char				buffer_size;
+	char				batch_size;
+	ES_batch_entry * 	entries;
+};
+
 /****************************************************************************
  *
  *		Writer Methods
@@ -414,7 +233,7 @@ void es_load_gen_header(ES_writer* writer) {
 // 8388608 slots (32768 * 256 max batch size) @ 512 bytes
 
 ES_writer* es_open_writer(char* path) {
-	//DebugPrint("Opening writer");
+	DebugPrint("Opening writer");
 	int op_result = 0;
 	// Allocate memory for use by the writer struct
 	ES_writer * writer = malloc(sizeof(ES_writer));

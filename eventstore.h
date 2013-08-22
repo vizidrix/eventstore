@@ -1,6 +1,23 @@
 #ifndef _ES_H_
 #define _ES_H_
 
+/***********************************************************************************************************
+============================================================================================================
+=        ==  ====  ==        ==  =======  ==        ===      ===        ====    ====       ===        ======
+=  ========  ====  ==  ========   ======  =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
+=  ========  ====  ==  ========    =====  =====  =====  ====  =====  =====  ====  ==  ====  ==  ============
+=  ========  ====  ==  ========  ==  ===  =====  ======  ==========  =====  ====  ==  ===   ==  ============
+=      ====   ==   ==      ====  ===  ==  =====  ========  ========  =====  ====  ==      ====      ========
+=  =========  ==  ===  ========  ====  =  =====  ==========  ======  =====  ====  ==  ====  ==  ============
+=  =========  ==  ===  ========  =====    =====  =====  ====  =====  =====  ====  ==  ====  ==  ============
+=  ==========    ====  ========  ======   =====  =====  ====  =====  ======  ==  ===  ====  ==  ============
+=        =====  =====        ==  =======  =====  ======      ======  =======    ====  ====  ==        ======
+============================================================================================================
+***********************************************************************************************************/
+
+// Thanks for the ASCII comment blocks!  (Reverse font) http://patorjk.com/software/taag/
+
+
 #include <stdarg.h> /* Needed for the definition of va_list */
 #include <stdlib.h>
 #include <stdint.h>
@@ -58,6 +75,18 @@
 
 char *es_version(int *major, int *minor, int *patch);		/** Return the library version info. */
 
+
+#define ES_SETTINGS_FILE_NAME		"es_settings_file.esdb.txt"
+#define ES_HEADER_FILE_NAME 		"es_header_file.esdb.txt"
+#define ES_DATA_GEN_FILE_NAME		"es_data_gen_file.esdb.txt"
+#define ES_DATA_FILE_NAME 			"es_data_file_%02d.esdb.txt"
+
+
+/** Stamp to identify a file as ES valid and check for byte oder */
+#define ES_FILE_KEY						"ES_HEADER_V_0x0001_DATA_V_0x0001"
+#define ES_FILE_KEY_SIZE				sizeof(ES_FILE_KEY)
+
+
 /** @ defgroup errors 	Return Codes
 *
 *	Avoid conflict with BerkelyDB (-30800 to -30999) and MDB (-30799 to -30783)
@@ -87,21 +116,7 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 #define ES_DATA_FILE_NOTFOUND 			(FILEIO_NOTFOUND - 10)	/** ES Data file was not found */
 #define ES_DATA_FILE_INVALID 			(FILEIO_INVALID - 10)	/** ES Data file is invalid */
 
-
 /** @} */
-
-	/** Represents an opaque handle to the real database struct */
-//typedef struct ES_handle ES_handle;
-
-	/** A domain creates a top level partition separating internal headers */
-//typedef struct ES_domain ES_domain;
-
-	/** A kind represents a type of Aggregate in the event store */
-//typedef struct ES_kind ES_kind;
-
-//ES_handle* es_open(char* path);
-//void es_close(ES_handle* writer);
-//int es_open(ES_database** database, char* path);
 
 	/** Targeting min workable size that fits cleanly in 4kb */
 #define ES_GEN_PAGE_SIZE				4096
@@ -112,11 +127,12 @@ char *es_version(int *major, int *minor, int *patch);		/** Return the library ve
 
 typedef struct ES_writer ES_writer;
 
-//typedef struct ES_batch_entry ES_batch_entry;
+typedef struct ES_batch_entry ES_batch_entry;
 typedef struct ES_batch ES_batch;
 
-typedef struct ES_command ES_command;
+//typedef struct ES_command_ptr;
 
+//typedef struct ES_command ES_command;
 
 
 ES_writer* es_open_writer(char* path);
@@ -127,8 +143,6 @@ ES_batch* es_alloc_batch(ES_writer* writer,
 	uint64_t aggregate_id,		/* Aggregate instance ids (event partition) */
 	char count);				/* Number of contiguous buffers to allocate */
 void es_publish_batch(ES_batch* batch);
-
-
 
 
 
