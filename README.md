@@ -1,10 +1,5 @@
-eventstore
-==========
+http://github.com/vizidrix/eventstore
+=====================================
 
-Currently working on the Ring Buffer as an extracted piece, check out:
+Provides the common set of interfaces and base functions to enable consistency across implementations
 
-http://github.com/vizidrix/ringbuffer
-
-
-
-An opinionated and very basic, read only, file based event store for GO
