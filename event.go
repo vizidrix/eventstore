@@ -28,11 +28,11 @@ type EventSerializerDeSerializer interface {
 }
 
 type EventSerializer interface {
-	SerializeEvent(Event) []byte
+	SerializeEvent(Event) ([]byte, error)
 }
 
 type EventDeserializer interface {
-	DeSerializeEvent([]byte) Event
+	DeSerializeEvent(uint64, []byte) (Event, error)
 }
 
 type EventMemento struct {

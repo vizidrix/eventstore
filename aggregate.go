@@ -17,10 +17,10 @@ var (
 )
 
 type AggregateMemento struct {
-	application uint32 `json:"__application"`	// Application this aggregate belongs to
-	domain      uint32 `json:"__domain"`  		// The type of aggregate (type is semantically equivalent to doman)
-	id          uint64 `json:"__id"`      		// Domain-unique identifier for the aggregate instance
-	version     uint32 `json:"__version"` 		// Derived from the number of events applied to the aggregate
+	application uint32 `json:"__application"` // Application this aggregate belongs to
+	domain      uint32 `json:"__domain"`      // The type of aggregate (type is semantically equivalent to doman)
+	id          uint64 `json:"__id"`          // Domain-unique identifier for the aggregate instance
+	version     uint32 `json:"__version"`     // Derived from the number of events applied to the aggregate
 }
 
 func NewAggregate(application uint32, domain uint32, id uint64, version uint32) Aggregate {
@@ -48,6 +48,6 @@ func (aggregate *AggregateMemento) GetVersion() uint32 {
 	return aggregate.version
 }
 
-func (aggregate AggregateMemento) String() string {
+func (aggregate *AggregateMemento) String() string {
 	return fmt.Sprintf("<A A[%d] D[%d] ID[%d] V[%d] \\>", aggregate.GetApplication(), aggregate.GetDomain(), aggregate.GetId(), aggregate.GetVersion())
 }
