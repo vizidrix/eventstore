@@ -22,19 +22,6 @@ type Event interface {
 	GetEventType() uint64
 }
 
-type EventSerializerDeSerializer interface {
-	EventSerializer
-	EventDeserializer
-}
-
-type EventSerializer interface {
-	SerializeEvent(Event) ([]byte, error)
-}
-
-type EventDeserializer interface {
-	DeSerializeEvent(uint64, []byte) (Event, error)
-}
-
 type EventMemento struct {
 	application uint32 `json:"__application"` // Application the target aggregate belongs to
 	domain      uint32 `json:"__domain"`      // The type of aggregate (type is semantically equivalent to doman)
