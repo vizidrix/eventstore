@@ -11,6 +11,12 @@ var (
 	ErrUsedKey        = errors.New("datastore key used")
 )
 
+type EventStoreReaderWriter interface {
+	AggregateIdGenerater
+	EventWriter
+	StreamReader
+}
+
 // Responsible for creating valid Application and Domain unique Ids for Aggregates
 type AggregateIdGenerater interface {
 	GenerateAggregateId(uint32, uint32) (uint64, error)
