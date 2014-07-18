@@ -1,6 +1,6 @@
 package eventstore
 
-type EventConverter interface {
+type EventSerialConverter interface {
 	EventSerializer
 	EventDeserializer
 }
@@ -13,7 +13,7 @@ type EventDeserializer interface {
 	DeserializeEvent([]byte) (Event, error)
 }
 
-type InformedConverter interface {
+type InformedSerialConverter interface {
 	EventSerializer
 	InformedDeserializer
 }
