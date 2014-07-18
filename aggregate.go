@@ -51,3 +51,7 @@ func (aggregate *AggregateMemento) GetVersion() uint32 {
 func (aggregate *AggregateMemento) String() string {
 	return fmt.Sprintf("<A A[%d] D[%d] ID[%d] V[%d] \\>", aggregate.GetApplication(), aggregate.GetDomain(), aggregate.GetId(), aggregate.GetVersion())
 }
+
+func NewRandAggregateId() uint64 {
+	return 1
+}

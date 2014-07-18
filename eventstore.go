@@ -34,12 +34,6 @@ type StreamReader interface {
 }
 
 /*
-type SerializerEvent interface {
-	Event
-	ToJSON() ([]byte, error)
-	FromJSON([]byte) error
-}
-
 func UnmarshalEvent(jsonEvent []byte) (event Event, err error) {
 	var memento *EventMemento
 	err = json.Unmarshal(jsonEvent, memento)
