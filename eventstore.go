@@ -7,8 +7,6 @@ import (
 
 var (
 	ErrInvalidVersion = errors.New("invalid aggregate version")
-	ErrUsedTimestamp  = errors.New("timestamp used")
-	ErrUsedKey        = errors.New("datastore key used")
 )
 
 type EventStoreReaderWriter interface {
