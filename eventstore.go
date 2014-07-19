@@ -30,14 +30,3 @@ type StreamReader interface {
 	LoadEventStreamByAggregate(uint32, uint32, uint64) ([]Event, error)
 	LoadEventStreamByDomain(uint32, uint32) ([]Event, error)
 }
-
-/*
-func UnmarshalEvent(jsonEvent []byte) (event Event, err error) {
-	var memento *EventMemento
-	err = json.Unmarshal(jsonEvent, memento)
-	if err != nil {
-		return
-	}
-	return memento, err
-}
-*/
