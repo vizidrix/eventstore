@@ -28,5 +28,6 @@ type EventWriter interface {
 // Responsible for serving Streams as queries against the EventStore
 type StreamReader interface {
 	LoadEventStreamByAggregate(uint32, uint32, uint64) ([]Event, error)
+	LoadEventStreamByEventType(uint32, uint64) ([]Event, error)
 	LoadEventStreamByDomain(uint32, uint32) ([]Event, error)
 }
